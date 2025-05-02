@@ -32,6 +32,61 @@ It provides a uniform SDK to work with biosensors with a primary focus on neuroi
     * Simplified process to add new boards and methods
 
 ## NeuroPawn Knight Board Docs
+
+### [Python] Brainflow Simple Setup
+```
+import brainflow as bf
+import time
+
+from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
+
+class KnightBoard:
+    def __init__(self, serial_port: str, num_channels: int):
+        """Initialize and configure the Knight Board."""
+        self.params = BrainFlowInputParams()
+        self.params.serial_port = serial_port
+        self.num_channels = num_channels
+        
+        # Initialize board
+        self.board_shim = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD.value, self.params)
+        self.board_id = self.board_shim.get_board_id()
+        self.eeg_channels = self.board_shim.get_exg_channels(self.board_id)
+        self.sampling_rate = self.board_shim.get_sampling_rate(self.board_id)
+
+    def start_stream(self, buffer_size: int = 450000):
+        """Start the data stream from the board."""
+        self.board_shim.prepare_session()
+        self.board_shim.start_stream(buffer_size)
+        print("Stream started.")
+        time.sleep(2)
+        for x in range(1, self.num_channels + 1):
+            time.sleep(0.5)
+            cmd = f"chon_{x}_12"
+            self.board_shim.config_board(cmd)
+            print(f"sending {cmd}")
+            time.sleep(1)
+            rld = f"rldadd_{x}"
+            self.board_shim.config_board(rld)
+            print(f"sending {rld}")
+            time.sleep(0.5)
+
+    def stop_stream(self):
+        """Stop the data stream and release resources."""
+        self.board_shim.stop_stream()
+        self.board_shim.release_session()
+        print("Stream stopped and session released.")
+
+Knight_board = KnightBoard("COM3", 8)
+Knight_board.start_stream()
+
+while True:
+    data = Knight_board.board_shim.get_board_data()
+    # do stuff with data
+
+    if keyboard.is_pressed('q'):
+        Knight_board.stop_stream()
+        break
+```
 ### BrainFlow Configuration Commands
 
 To configure the NeuroPawn Knight board with BrainFlow, pass the commands as strings into:
