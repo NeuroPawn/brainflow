@@ -38,7 +38,6 @@ class BoardIds(enum.IntEnum):
     FREEEEG32_BOARD = 17  #:
     BRAINBIT_BLED_BOARD = 18  #:
     GFORCE_DUAL_BOARD = 19  #:
-    GALEA_SERIAL_BOARD = 20  #:
     MUSE_S_BLED_BOARD = 21  #:
     MUSE_2_BLED_BOARD = 22  #:
     CROWN_BOARD = 23  #:
@@ -65,8 +64,6 @@ class BoardIds(enum.IntEnum):
     EXPLORE_8_CHAN_BOARD = 45  #:
     GANGLION_NATIVE_BOARD = 46  #:
     EMOTIBIT_BOARD = 47  #:
-    GALEA_BOARD_V4 = 48  #:
-    GALEA_SERIAL_BOARD_V4 = 49  #:
     NTL_WIFI_BOARD = 50  #:
     ANT_NEURO_EE_511_BOARD = 51  #:
     FREEEEG128_BOARD = 52  #:
@@ -75,6 +72,13 @@ class BoardIds(enum.IntEnum):
     EXPLORE_PLUS_32_CHAN_BOARD = 55 #:
     PIEEG_BOARD = 56  #:
     NEUROPAWN_KNIGHT_BOARD = 57 #:
+    SYNCHRONI_TRIO_3_CHANNELS_BOARD = 58  #:
+    SYNCHRONI_OCTO_8_CHANNELS_BOARD = 59  #:
+    OB5000_8_CHANNELS_BOARD = 60  #:
+    SYNCHRONI_PENTO_8_CHANNELS_BOARD = 61  #:
+    SYNCHRONI_UNO_1_CHANNELS_BOARD = 62 #:
+    OB3000_24_CHANNELS_BOARD = 63  #:
+    BIOLISTENER_BOARD = 64  #:
 
 
 class IpProtocolTypes(enum.IntEnum):
@@ -576,6 +580,10 @@ class BoardShim(object):
                                      BrainFlowExitCodes.INVALID_ARGUMENTS_ERROR.value)
         else:
             self._master_board_id = self.board_id
+
+    def __del__(self) -> None:
+        if self.is_prepared():
+            self.release_session()
 
     @classmethod
     def set_log_level(cls, log_level: int) -> None:

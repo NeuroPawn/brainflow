@@ -16,6 +16,7 @@
 
 #include "aavaa_v3.h"
 #include "ant_neuro.h"
+#include "biolistener.h"
 #include "board.h"
 #include "board_controller.h"
 #include "board_info_getter.h"
@@ -37,9 +38,6 @@
 #include "explore.h"
 #include "freeeeg.h"
 #include "galea.h"
-#include "galea_serial.h"
-#include "galea_serial_v4.h"
-#include "galea_v4.h"
 #include "ganglion.h"
 #include "ganglion_native.h"
 #include "ganglion_wifi.h"
@@ -54,6 +52,7 @@
 #include "pieeg_board.h"
 #include "playback_file_board.h"
 #include "streaming_board.h"
+#include "synchroni_board.h"
 #include "synthetic_board.h"
 #include "unicorn_board.h"
 
@@ -165,9 +164,6 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::GFORCE_DUAL_BOARD:
             board = std::shared_ptr<Board> (new GforceDual (params));
             break;
-        case BoardIds::GALEA_SERIAL_BOARD:
-            board = std::shared_ptr<Board> (new GaleaSerial (params));
-            break;
         case BoardIds::MUSE_S_BLED_BOARD:
             board = std::shared_ptr<Board> (new MuseBLED (board_id, params));
             break;
@@ -256,12 +252,6 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::EMOTIBIT_BOARD:
             board = std::shared_ptr<Board> (new Emotibit (params));
             break;
-        case BoardIds::GALEA_BOARD_V4:
-            board = std::shared_ptr<Board> (new GaleaV4 (params));
-            break;
-        case BoardIds::GALEA_SERIAL_BOARD_V4:
-            board = std::shared_ptr<Board> (new GaleaSerialV4 (params));
-            break;
         case BoardIds::ANT_NEURO_EE_511_BOARD:
             board = std::shared_ptr<Board> (
                 new AntNeuroBoard ((int)BoardIds::ANT_NEURO_EE_511_BOARD, params));
@@ -281,9 +271,30 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::PIEEG_BOARD:
             board = std::shared_ptr<Board> (new PIEEGBoard (board_id, params));
             break;
+        case BoardIds::SYNCHRONI_TRIO_3_CHANNELS_BOARD:
+            board = std::shared_ptr<Board> (new SynchroniBoard (board_id, params));
+            break;
+        case BoardIds::SYNCHRONI_OCTO_8_CHANNELS_BOARD:
+            board = std::shared_ptr<Board> (new SynchroniBoard (board_id, params));
+            break;
+        case BoardIds::SYNCHRONI_NEO_8_CHANNELS_BOARD:
+            board = std::shared_ptr<Board> (new SynchroniBoard (board_id, params));
+            break;
+        case BoardIds::SYNCHRONI_UNO_1_CHANNELS_BOARD:
+            board = std::shared_ptr<Board> (new SynchroniBoard (board_id, params));
+            break;
+        case BoardIds::OB5000_8_CHANNELS_BOARD:
+            board = std::shared_ptr<Board> (new SynchroniBoard (board_id, params));
+            break;
+        case BoardIds::OB3000_24_CHANNELS_BOARD:
+            board = std::shared_ptr<Board> (new SynchroniBoard (board_id, params));
+            break;
         case BoardIds::NEUROPAWN_KNIGHT_BOARD:
             board =
                 std::shared_ptr<Board> (new Knight ((int)BoardIds::NEUROPAWN_KNIGHT_BOARD, params));
+            break;
+        case BoardIds::BIOLISTENER_BOARD:
+            board = std::shared_ptr<Board> (new BioListener<8> (board_id, params));
             break;
         default:
             return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;

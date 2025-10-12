@@ -1,7 +1,7 @@
 [brainflow]
-git-tree-sha1 = "cfb23a280c7f75e1ed21bace22c00d3a07d81454"
+git-tree-sha1 = "9d629314793be525fd56c79dcaacd24b708931ad"
 lazy = true
 
     [[brainflow.download]]
-    sha256 = "07be438a9a01edf560a3ec6c8db6b4c9c6e6f65d08a3b44afe81459f57c06bbb"
-    url = "https://github.com/brainflow-dev/brainflow/releases/download/5.14.0/compiled_libs.tar"
+    sha256 = "d87cdc45272f1afe44f82afb79f8c969af25a68850125a6600b746ea635c02b0"
+    url = "https://github.com/brainflow-dev/brainflow/releases/download/5.19.0/compiled_libs.tar"

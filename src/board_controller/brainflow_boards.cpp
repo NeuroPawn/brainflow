@@ -75,7 +75,14 @@ BrainFlowBoards::BrainFlowBoards()
             {"54", json::object()},
             {"55", json::object()},
             {"56", json::object()},
-            {"57", json::object()}
+            {"57", json::object()},
+            {"58", json::object()},
+            {"59", json::object()},
+            {"60", json::object()},
+            {"61", json::object()},
+            {"62", json::object()},
+            {"63", json::object()},
+            {"64", json::object()}
         }
     }};
 
@@ -178,28 +185,31 @@ BrainFlowBoards::BrainFlowBoards()
         {"name", "Galea"},
         {"sampling_rate", 250},
         {"package_num_channel", 0},
-        {"timestamp_channel", 19},
-        {"marker_channel", 20},
-        {"num_rows", 21},
-        {"eeg_channels", {7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
-        {"eeg_names", "FP1,FP2,Fz,Cz,Pz,Oz,P3,P4,O1,O2"},
-        {"emg_channels", {1, 2, 3, 4}},
+        {"timestamp_channel", 27},
+        {"marker_channel", 28},
+        {"num_rows", 29},
+        {"eeg_channels", {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}},
+        {"eeg_names", "F1,F2,C3,C4,P3,P4,O1,O2,Cz,Pz,X1,X2,X3,X4,X5,X6"},
+        {"emg_channels", {1, 2, 3, 4, 7, 8}},
         {"eog_channels", {5, 6}},
-        {"other_channels", {17, 18}},
+        {"other_channels", {25, 26}},
     };
     brainflow_boards_json["boards"]["3"]["auxiliary"] =
     {
         {"name", "GaleaAuxiliary"},
         {"sampling_rate", 50},
         {"package_num_channel", 0},
-        {"timestamp_channel", 8},
-        {"marker_channel", 9},
-        {"num_rows", 10},
-        {"battery_channel", 5},
-        {"eda_channels", {1}},
-        {"ppg_channels", {2, 3}},
-        {"other_channels", {6, 7}},
-        {"temperature_channels", {4}}
+        {"timestamp_channel", 18},
+        {"marker_channel", 19},
+        {"num_rows", 20},
+        {"battery_channel", 6},
+        {"eda_channels", {1, 2}},
+        {"ppg_channels", {3, 4}},
+        {"accel_channels", {7, 8, 9}},
+        {"gyro_channels", {10, 11, 12}},
+        {"magnetometer_channels", {13, 14, 15}},
+        {"other_channels", {16, 17}},
+        {"temperature_channels", {5}}
     };
     brainflow_boards_json["boards"]["4"]["default"] =
     {
@@ -376,34 +386,6 @@ BrainFlowBoards::BrainFlowBoards()
         {"num_rows", 5},
         {"emg_channels", {1, 2}}
     };
-    brainflow_boards_json["boards"]["20"]["default"] =
-    {
-        {"name", "GaleaSerial"},
-        {"sampling_rate", 250},
-        {"package_num_channel", 0},
-        {"timestamp_channel", 19},
-        {"marker_channel", 20},
-        {"num_rows", 21},
-        {"eeg_channels", {7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
-        {"eeg_names", "FP1,FP2,Fz,Cz,Pz,Oz,P3,P4,O1,O2"},
-        {"emg_channels", {1, 2, 3, 4}},
-        {"eog_channels", {5, 6}},
-        {"other_channels", {17, 18}},
-    };
-    brainflow_boards_json["boards"]["20"]["auxiliary"] =
-    {
-        {"name", "GaleaSerialAuxiliary"},
-        {"sampling_rate", 50},
-        {"package_num_channel", 0},
-        {"timestamp_channel", 8},
-        {"marker_channel", 9},
-        {"num_rows", 10},
-        {"battery_channel", 5},
-        {"eda_channels", {1}},
-        {"ppg_channels", {2, 3}},
-        {"other_channels", {6, 7}},
-        {"temperature_channels", {4}}
-    };
     brainflow_boards_json["boards"]["21"]["default"] =
     {
         {"name", "MuseSBLED"},
@@ -486,152 +468,173 @@ BrainFlowBoards::BrainFlowBoards()
     {
         {"name", "AntNeuroEE410"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 10},
-        {"marker_channel", 11},
+        {"timestamp_channel", 12},
+        {"marker_channel", 13},
         {"package_num_channel", 0},
-        {"num_rows", 12},
+        {"num_rows", 14},
         {"emg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
-        {"other_channels", {9}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+        {"other_channels", {11}}
     };
     brainflow_boards_json["boards"]["25"]["default"] =
     {
         {"name", "AntNeuroEE411"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 10},
-        {"marker_channel", 11},
+        {"timestamp_channel", 12},
+        {"marker_channel", 13},
         {"package_num_channel", 0},
-        {"num_rows", 12},
+        {"num_rows", 14},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
-        {"other_channels", {9}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+        {"other_channels", {11}}
     };
     brainflow_boards_json["boards"]["26"]["default"] =
     {
         {"name", "AntNeuroEE430"},
         {"sampling_rate", 512},
-        {"timestamp_channel", 10},
-        {"marker_channel", 11},
+        {"timestamp_channel", 12},
+        {"marker_channel", 13},
         {"package_num_channel", 0},
-        {"num_rows", 12},
+        {"num_rows", 14},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
-        {"other_channels", {9}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+        {"other_channels", {11}}
     };
     brainflow_boards_json["boards"]["27"]["default"] =
     {
         {"name", "AntNeuroEE211"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 66},
-        {"marker_channel", 67},
+        {"timestamp_channel", 68},
+        {"marker_channel", 69},
         {"package_num_channel", 0},
-        {"num_rows", 68},
+        {"num_rows", 70},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}},
-        {"other_channels", {65}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66}},
+        {"other_channels", {67}}
     };
     brainflow_boards_json["boards"]["28"]["default"] =
     {
         {"name", "AntNeuroEE212"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 34},
-        {"marker_channel", 35},
+        {"timestamp_channel", 36},
+        {"marker_channel", 37},
         {"package_num_channel", 0},
-        {"num_rows", 36},
+        {"num_rows", 38},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
-        {"other_channels", {33}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34}},
+        {"other_channels", {35}}
     };
     brainflow_boards_json["boards"]["29"]["default"] =
     {
         {"name", "AntNeuroEE213"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 18},
-        {"marker_channel", 19},
+        {"timestamp_channel", 20},
+        {"marker_channel", 21},
         {"package_num_channel", 0},
-        {"num_rows", 20},
+        {"num_rows", 22},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
-        {"other_channels", {17}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}},
+        {"other_channels", {19}}
     };
     brainflow_boards_json["boards"]["30"]["default"] =
     {
         {"name", "AntNeuroEE214"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 58},
-        {"marker_channel", 59},
+        {"timestamp_channel", 60},
+        {"marker_channel", 61},
         {"package_num_channel", 0},
-        {"num_rows", 60},
+        {"num_rows", 62},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
         {"emg_channels", {33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56}},
-        {"other_channels", {57}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 57, 58}},
+        {"other_channels", {59}}
     };
     brainflow_boards_json["boards"]["31"]["default"] =
     {
         {"name", "AntNeuroEE215"},
         {"sampling_rate", 2000},
-        {"timestamp_channel", 90},
-        {"marker_channel", 91},
+        {"timestamp_channel", 92},
+        {"marker_channel", 93},
         {"package_num_channel", 0},
-        {"num_rows", 92},
+        {"num_rows", 94},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}},
         {"emg_channels", {65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88}},
-        {"other_channels", {89}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            64, 89, 90}},
+        {"other_channels", {91}}
     };
     brainflow_boards_json["boards"]["32"]["default"] =
     {
         {"name", "AntNeuroEE221"},
         {"sampling_rate", 16000},
-        {"timestamp_channel", 18},
-        {"marker_channel", 19},
+        {"timestamp_channel", 20},
+        {"marker_channel", 21},
         {"package_num_channel", 0},
-        {"num_rows", 20},
+        {"num_rows", 22},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}},
-        {"other_channels", {17}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}},
+        {"other_channels", {19}}
     };
     brainflow_boards_json["boards"]["33"]["default"] =
     {
         {"name", "AntNeuroEE222"},
         {"sampling_rate", 16000},
-        {"timestamp_channel", 34},
-        {"marker_channel", 35},
+        {"timestamp_channel", 36},
+        {"marker_channel", 37},
         {"package_num_channel", 0},
-        {"num_rows", 36},
+        {"num_rows", 38},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
-        {"other_channels", {33}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34}},
+        {"other_channels", {35}}
     };
     brainflow_boards_json["boards"]["34"]["default"] =
     {
         {"name", "AntNeuroEE223"},
         {"sampling_rate", 16000},
-        {"timestamp_channel", 58},
-        {"marker_channel", 59},
+        {"timestamp_channel", 60},
+        {"marker_channel", 61},
         {"package_num_channel", 0},
-        {"num_rows", 60},
+        {"num_rows", 62},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
         {"emg_channels", {33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56}},
-        {"other_channels", {57}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 57, 58}},
+        {"other_channels", {59}}
     };
     brainflow_boards_json["boards"]["35"]["default"] =
     {
         {"name", "AntNeuroEE224"},
         {"sampling_rate", 16000},
-        {"timestamp_channel", 66},
-        {"marker_channel", 67},
+        {"timestamp_channel", 68},
+        {"marker_channel", 69},
         {"package_num_channel", 0},
-        {"num_rows", 68},
+        {"num_rows", 70},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}},
-        {"other_channels", {65}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66}},
+        {"other_channels", {67}}
     };
     brainflow_boards_json["boards"]["36"]["default"] =
     {
         {"name", "AntNeuroEE225"},
         {"sampling_rate", 16000},
-        {"timestamp_channel", 90},
-        {"marker_channel", 91},
+        {"timestamp_channel", 92},
+        {"marker_channel", 93},
         {"package_num_channel", 0},
-        {"num_rows", 92},
+        {"num_rows", 94},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64}},
         {"emg_channels", {65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88}},
-        {"other_channels", {89}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            64, 89, 90}},
+        {"other_channels", {91}}
     };
     brainflow_boards_json["boards"]["37"]["default"] =
     {
@@ -891,68 +894,6 @@ BrainFlowBoards::BrainFlowBoards()
         {"temperature_channels", {2}},
         {"other_channels", {3}}
     };
-    brainflow_boards_json["boards"]["48"]["default"] =
-    {
-        {"name", "GaleaV4"},
-        {"sampling_rate", 250},
-        {"package_num_channel", 0},
-        {"timestamp_channel", 27},
-        {"marker_channel", 28},
-        {"num_rows", 29},
-        {"eeg_channels", {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}},
-        {"eeg_names", "F1,C3,F2,Cz,C4,Pz,P4,O2,P3,O1,X1,X2,X3,X4,X5,X6"},
-        {"emg_channels", {1, 2, 3, 4, 7, 8}},
-        {"eog_channels", {5, 6}},
-        {"other_channels", {25, 26}},
-    };
-    brainflow_boards_json["boards"]["48"]["auxiliary"] =
-    {
-        {"name", "GaleaV4Auxiliary"},
-        {"sampling_rate", 50},
-        {"package_num_channel", 0},
-        {"timestamp_channel", 17},
-        {"marker_channel", 18},
-        {"num_rows", 19},
-        {"battery_channel", 5},
-        {"eda_channels", {1}},
-        {"ppg_channels", {2, 3}},
-        {"accel_channels", {6, 7, 8}},
-        {"gyro_channels", {9, 10, 11}},
-        {"magnetometer_channels", {12, 13, 14}},
-        {"other_channels", {15, 16}},
-        {"temperature_channels", {4}}
-    };
-    brainflow_boards_json["boards"]["49"]["default"] =
-    {
-        {"name", "GaleaSerial"},
-        {"sampling_rate", 250},
-        {"package_num_channel", 0},
-        {"timestamp_channel", 27},
-        {"marker_channel", 28},
-        {"num_rows", 29},
-        {"eeg_channels", {9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}},
-        {"eeg_names", "F1,C3,F2,Cz,C4,Pz,P4,O2,P3,O1,X1,X2,X3,X4,X5,X6"},
-        {"emg_channels", {1, 2, 3, 4, 7, 8}},
-        {"eog_channels", {5, 6}},
-        {"other_channels", {25, 26}},
-    };
-    brainflow_boards_json["boards"]["49"]["auxiliary"] =
-    {
-        {"name", "GaleaSerialAuxiliary"},
-        {"sampling_rate", 50},
-        {"package_num_channel", 0},
-        {"timestamp_channel", 17},
-        {"marker_channel", 18},
-        {"num_rows", 19},
-        {"battery_channel", 5},
-        {"eda_channels", {1}},
-        {"ppg_channels", {2, 3}},
-        {"accel_channels", {6, 7, 8}},
-        {"gyro_channels", {9, 10, 11}},
-        {"magnetometer_channels", {12, 13, 14}},
-        {"other_channels", {15, 16}},
-        {"temperature_channels", {4}}
-    };
     brainflow_boards_json["boards"]["50"]["default"] =
     {
         {"name", "NtlWifi"},
@@ -975,13 +916,14 @@ BrainFlowBoards::BrainFlowBoards()
     {
         {"name", "AntNeuroEE511"},
         {"sampling_rate", 4096},
-        {"timestamp_channel", 30},
-        {"marker_channel", 31},
+        {"timestamp_channel", 32},
+        {"marker_channel", 33},
         {"package_num_channel", 0},
-        {"num_rows", 32},
+        {"num_rows", 34},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}},
         {"emg_channels", {25, 26, 27, 28}},
-        {"other_channels", {29}}
+        {"resistance_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 29, 30}},
+        {"other_channels", {31}}
     };
     brainflow_boards_json["boards"]["52"]["default"] =
     {
@@ -1105,6 +1047,91 @@ BrainFlowBoards::BrainFlowBoards()
         {"package_num_channel", 0},
         {"num_rows", 13},
         {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"other_channels", {9, 10}}
+    };
+    brainflow_boards_json["boards"]["58"]["default"] = {
+        {"name", "Sync-Trio"},
+        {"sampling_rate", 250},
+        {"package_num_channel", 0},
+        {"timestamp_channel", 4},
+        {"marker_channel", 5},
+        {"num_rows", 6},
+        {"eeg_channels", {1, 2}},
+        {"ecg_channels", {3}}
+    };
+    brainflow_boards_json["boards"]["59"]["default"] = {
+        {"name", "Sync-Octo"},
+        {"sampling_rate", 250},
+        {"package_num_channel", 0},
+        {"timestamp_channel", 9},
+        {"marker_channel", 10},
+        {"num_rows", 11},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7}},
+        {"ecg_channels", {8}}
+    };
+        brainflow_boards_json["boards"]["60"]["default"] = {
+        {"name", "OB5000MAX"},
+        {"sampling_rate", 250},
+        {"package_num_channel", 0},
+        {"timestamp_channel", 9},
+        {"marker_channel", 10},
+        {"num_rows", 11},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+    };
+    brainflow_boards_json["boards"]["61"]["default"] = {
+        {"name", "Sync-Neo"},
+        {"sampling_rate", 250},
+        {"package_num_channel", 0},
+        {"timestamp_channel", 9},
+        {"marker_channel", 10},
+        {"num_rows", 11},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}}
+    };
+    brainflow_boards_json["boards"]["62"]["default"] = {
+        {"name", "Sync-Uno"},
+        {"sampling_rate", 250},
+        {"package_num_channel", 0},
+        {"timestamp_channel", 2},
+        {"marker_channel", 3},
+        {"num_rows", 4},
+        {"eeg_channels", {1}}
+    };
+    brainflow_boards_json["boards"]["63"]["default"] = {
+        {"name", "OB3000"},
+        {"sampling_rate", 500},
+        {"package_num_channel", 0},
+        {"timestamp_channel", 25},
+        {"marker_channel", 26},
+        {"num_rows", 27},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}},
+        {"ecg_channels", {24}}
+    };
+    brainflow_boards_json["boards"]["64"]["default"] =
+    {
+        {"name", "BioListener"},
+        {"sampling_rate", 500},
+        {"timestamp_channel", 11},
+        {"marker_channel", 12},
+        {"package_num_channel", 0},
+        {"num_rows", 13},
+        {"eeg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"emg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"ecg_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"eog_channels", {1, 2, 3, 4, 5, 6, 7, 8}},
+        {"other_channels", {9, 10}}
+    };
+    brainflow_boards_json["boards"]["64"]["auxiliary"] =
+    {
+        {"name", "BioListener"},
+        {"sampling_rate", 50},
+        {"timestamp_channel", 11},
+        {"marker_channel", 12},
+        {"package_num_channel", 0},
+        {"num_rows", 13},
+        {"accel_channels", {1, 2, 3}},
+        {"gyro_channels", {4, 5, 6}},
+        {"temperature_channels", {7}},
+        {"battery_channel", 8},
         {"other_channels", {9, 10}}
     };
 }

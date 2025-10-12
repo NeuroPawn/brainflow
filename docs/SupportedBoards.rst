@@ -223,6 +223,14 @@ Supported platforms:
 - MacOS
 - Devices like Raspberry Pi
 
+Available Ganglion commands can be found at `OpenBCI docs page <https://docs.openbci.com/Ganglion/GanglionSDK/>`_.
+
+Enabling accelerometer data:
+
+.. code-block:: python
+
+    board.config_board("n")  # this decreases the resolution of EEG data and enables accel data
+
 Ganglion Native
 ~~~~~~~~~~~~~~~~~
 
@@ -237,8 +245,8 @@ Unlike Ganglion board this BrainFlow board does not use BLED112 dongle, so you n
 To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
 
 - :code:`BoardIds.GANGLION_NATIVE_BOARD`
-- *optoinal:* :code:`mac_address`, if not provided BrainFlow will try to autodiscover the device
-- *optoinal:* :code:`serial_number`, if not provided BrainFlow will try to autodiscover the device
+- *optional:* :code:`mac_address`, if not provided BrainFlow will try to autodiscover the device
+- *optional:* :code:`serial_number`, if not provided BrainFlow will try to autodiscover the device
 
 Initialization Example:
 
@@ -258,6 +266,14 @@ Supported platforms:
 - MacOS 10.15+, 12.0 to 12.2 have known issues while scanning, you need to update to 12.3+. On MacOS 12+ you may need to configure Bluetooth permissions for your appication
 - Linux, compilation from source code probably will be needed
 - Devices like Raspberry Pi
+
+Available Ganglion commands can be found at `OpenBCI docs page <https://docs.openbci.com/Ganglion/GanglionSDK/>`_.
+
+Enabling accelerometer data:
+
+.. code-block:: python
+
+    board.config_board("n")  # this decreases the resolution of EEG data and enables accel data
 
 Cyton Daisy
 ~~~~~~~~~~~~
@@ -1026,12 +1042,19 @@ Ant Neuro has many devices and all of them are supported by BrainFlow:
 - :code:`ANT_NEURO_EE_225_BOARD`
 - :code:`ANT_NEURO_EE_511_BOARD`
 
-Initialization Example:
+The following fields of BrainFlowInputParams object are supported:
+
+- *optional:* :code:`serial_number`, important if you have multiple devices in the same place, can be found on the amplifier label (if not provided, BrainFlow will try to autodiscover the device)
+
+
+Initialization example:
 
 .. code-block:: python
 
     params = BrainFlowInputParams()
-    board = BoardShim(BoardIds.ANT_NEURO_EE_410_BOARD, params)
+    board = BoardShim(BoardIds.ANT_NEURO_EE_410_BOARD, params)  # 8 channel amplifier
+
+`More elaborate example <https://github.com/brainflow-dev/brainflow/blob/master/python_package/examples/tests/eego_impedances_and_eeg.py>`_ (reading EEG and impedances)
 
 Supported platforms:
 
@@ -1040,7 +1063,11 @@ Supported platforms:
 
 Available commands:
 
+- Get amplifier info: :code:`board.config_board("get_info")`, returns json-string with amplifier type, firmware version, serial number, available sampling rates, available reference ranges, available bipolar ranges, and power state.
+- Set impedance mode: :code:`board.config_board("impedance_mode:1")`, mode 0 or 1.
 - Set sampling rate: :code:`board.config_board("sampling_rate:500")`, for available values check docs from Ant Neuro.
+- Set reference range: :code:`board.config_board("reference_range:1.0")`, for available values check docs from Ant Neuro.
+- Set bipolar range: :code:`board.config_board("bipolar_range:2.5")`, for available values check docs from Ant Neuro.
 
 For more information about Ant Neuro boards please refer to their User Manual.
 
@@ -1054,7 +1081,7 @@ Enophone Headphones
     :width: 401px
     :height: 500px
 
-`Enophone website <https://enophone.com/enophones/>`_
+`Enophone website <https://getenophone.com/>`_
 
 **You need to pair your device first.**
 
@@ -1248,6 +1275,7 @@ To create such board you need to specify the following board ID and fields of Br
 
 - :code:`BoardIds.EMOTIBIT_BOARD`
 - *optional:* :code:`ip_address`, you can provide *broadcast* ip address of the network with EmotiBit device, e.g. 192.168.178.255. If not provided BrainFlow will try to autodiscover the network and it may take a little longer.
+- *optional:* :code:`serial_number`, recommended you if have multiple boards in the same network.
 
 Initialization Example:
 
@@ -1341,3 +1369,47 @@ Supported platforms:
 - Linux
 - MacOS
 - Devices like Raspberry Pi
+
+
+BioListener
+--------
+
+BioListener
+~~~~~~~~~~~~~
+
+.. image:: https://live.staticflickr.com/65535/54273076343_6a7eb99697_k.jpg
+    :width: 519px
+    :height: 389px
+
+`BioListener website <https://github.com/serhii-matsyshyn/biolistener/>`_
+
+To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
+
+- :code:`BoardIds.BIOLISTENER_BOARD`
+- *optional:* :code:`ip_address`, ip address of the machine running the BrainFlow server (not the end device). If not provided, the server will listen on all network interfaces (at `0.0.0.0`)
+- *optional:* :code:`ip_port`, any free local port. If the chosen port is in use, the next available free port will be used. If not provided, the search for a free port starts at `12345`
+- *optional:* :code:`timeout`, timeout for device discovery, default is 3sec
+
+Make sure to configure the BioListener board as stated in the `BioListener documentation <https://github.com/serhii-matsyshyn/biolistener/>`_ to connect to the BrainFlow server.
+
+Initialization Example:
+
+.. code-block:: python
+
+    params = BrainFlowInputParams()
+    params.ip_port = 12345
+    params.ip_address = "0.0.0.0"
+    board = BoardShim(BoardIds.BIOLISTENER_BOARD, params)
+
+Supported platforms:
+
+- Windows
+- Linux
+- MacOS
+- Devices like Raspberry Pi
+- Android
+
+Available :ref:`presets-label`:
+
+- :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG (EMG, ECG, EOG) data
+- :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Gyro, Accel, battery and ESP32 chip temperature data

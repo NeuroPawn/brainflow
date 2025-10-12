@@ -21,6 +21,7 @@
 #include "eemagine/sdk/wrapper.h"
 
 using namespace eemagine::sdk;
+using json = nlohmann::json;
 
 
 AntNeuroBoard::AntNeuroBoard (int board_id, struct BrainFlowInputParams params)
@@ -71,6 +72,8 @@ AntNeuroBoard::AntNeuroBoard (int board_id, struct BrainFlowInputParams params)
     }
     reference_range = -1.0;
     bipolar_range = -1.0;
+    impedance_mode = false;
+    impedance_package_num = -1;
 }
 
 AntNeuroBoard::~AntNeuroBoard ()
@@ -93,17 +96,72 @@ int AntNeuroBoard::prepare_session ()
         safe_logger (spdlog::level::info, "eego sdk version is: {}.{}.{}.{}",
             fact->getVersion ().major, fact->getVersion ().minor, fact->getVersion ().micro,
             fact->getVersion ().build);
-        amp = fact->getAmplifier ();
+
+        // Iterate through connected amplifiers
+        std::vector<amplifier *> amplifier_list = fact->getAmplifiers ();
+        if (amplifier_list.empty ())
+        {
+            throw exceptions::notFound ("no ANT amplifiers found.");
+        }
+
+        std::string expected_board_name = board_descr["default"]["name"];
+        std::string expected_serial_number = params.serial_number;
+
+        std::vector<amplifier *>::iterator iter = amplifier_list.begin ();
+        for (; iter != amplifier_list.end (); ++iter)
+        {
+            amplifier *current_amp = *iter;
+            std::string current_board_name = "AntNeuro" + current_amp->getType ();
+            std::string current_serial = current_amp->getSerialNumber ();
+
+            if ((!expected_board_name.empty () && current_board_name != expected_board_name) ||
+                (!expected_serial_number.empty () && current_serial != expected_serial_number))
+            {
+                safe_logger (spdlog::level::info,
+                    "Found non-matching amplifier (board name {}, serial {})", current_board_name,
+                    current_serial);
+                delete current_amp;
+                continue;
+            }
+
+            // Found the matching amplifier
+            safe_logger (spdlog::level::info, "Found amplifier (board name {}, serial {})!",
+                current_board_name, current_serial);
+            amp = current_amp;
+            break;
+        }
+
+        // Check if amplifier is found
+        if (amp == NULL)
+        {
+            throw exceptions::notFound (
+                "no amplifier matched the given board name and serial number.");
+        }
+
+        // Clean up remaining amplifiers after the selected one
+        while (++iter != amplifier_list.end ())
+        {
+            amplifier *current_amp = *iter;
+            std::string current_board_name = "AntNeuro" + current_amp->getType ();
+            std::string current_serial = current_amp->getSerialNumber ();
+            safe_logger (spdlog::level::info,
+                "Found non-matching amplifier (board name {}, serial {})", current_board_name,
+                current_serial);
+            delete current_amp;
+        }
+
         reference_range = amp->getReferenceRangesAvailable ()[0];
         bipolar_range = amp->getBipolarRangesAvailable ()[0];
         if (sampling_rate < 0)
         {
             sampling_rate = amp->getSamplingRatesAvailable ()[0];
         }
+        impedance_mode = false;
+        impedance_package_num = 0;
     }
     catch (const exceptions::notFound &e)
     {
-        safe_logger (spdlog::level::err, "No devices found, {}", e.what ());
+        safe_logger (spdlog::level::err, "Device not found, {}", e.what ());
         return (int)BrainFlowExitCodes::BOARD_NOT_READY_ERROR;
     }
     catch (const std::runtime_error &e)
@@ -143,10 +201,18 @@ int AntNeuroBoard::start_stream (int buffer_size, const char *streamer_params)
 
     try
     {
-        safe_logger (spdlog::level::info,
-            "sampling rate: {}, reference range: {}, bipolar range: {}", sampling_rate,
-            reference_range, bipolar_range);
-        stream = amp->OpenEegStream (sampling_rate, reference_range, bipolar_range);
+        if (impedance_mode)
+        {
+            safe_logger (spdlog::level::info, "start impedance stream");
+            stream = amp->OpenImpedanceStream ();
+        }
+        else
+        {
+            safe_logger (spdlog::level::info,
+                "start eeg stream (sampling rate: {}, reference range: {}, bipolar range: {})",
+                sampling_rate, reference_range, bipolar_range);
+            stream = amp->OpenEegStream (sampling_rate, reference_range, bipolar_range);
+        }
     }
     catch (const std::runtime_error &e)
     {
@@ -217,6 +283,7 @@ void AntNeuroBoard::read_thread ()
     }
     std::vector<int> emg_channels;
     std::vector<int> eeg_channels;
+    std::vector<int> resistance_channels;
     try
     {
         emg_channels = board_descr["default"]["emg_channels"].get<std::vector<int>> ();
@@ -233,6 +300,15 @@ void AntNeuroBoard::read_thread ()
     {
         safe_logger (spdlog::level::trace, "device has no eeg channels");
     }
+    try
+    {
+        resistance_channels =
+            board_descr["default"]["resistance_channels"].get<std::vector<int>> ();
+    }
+    catch (...)
+    {
+        safe_logger (spdlog::level::trace, "device has no resistance channels");
+    }
     std::vector<channel> ant_channels = stream->getChannelList ();
 
     while (keep_alive)
@@ -243,19 +319,29 @@ void AntNeuroBoard::read_thread ()
             int buf_channels_len = buf.getChannelCount ();
             for (int i = 0; i < (int)buf.getSampleCount (); i++)
             {
+                std::fill (package, package + num_rows, 0.0);
                 int eeg_counter = 0;
                 int emg_counter = 0;
+                int resistance_counter = 0;
                 for (int j = 0; j < buf_channels_len; j++)
                 {
                     if ((ant_channels[j].getType () == channel::reference) &&
                         (eeg_counter < (int)eeg_channels.size ()))
                     {
                         package[eeg_channels[eeg_counter++]] = buf.getSample (j, i);
+                        if (impedance_mode)
+                        {
+                            resistance_counter++;
+                        }
                     }
                     if ((ant_channels[j].getType () == channel::bipolar) &&
                         (emg_counter < (int)emg_channels.size ()))
                     {
                         package[emg_channels[emg_counter++]] = buf.getSample (j, i);
+                        if (impedance_mode)
+                        {
+                            resistance_counter++;
+                        }
                     }
                     if (ant_channels[j].getType () == channel::sample_counter)
                     {
@@ -267,11 +353,32 @@ void AntNeuroBoard::read_thread ()
                         package[board_descr["default"]["other_channels"][0].get<int> ()] =
                             buf.getSample (j, i);
                     }
+                    if ((ant_channels[j].getType () == channel::impedance_reference) &&
+                        (resistance_counter < (int)resistance_channels.size ()))
+                    {
+                        package[resistance_channels[resistance_counter++]] = buf.getSample (j, i);
+                    }
+                    if ((ant_channels[j].getType () == channel::impedance_ground) &&
+                        (resistance_counter < (int)resistance_channels.size ()))
+                    {
+                        package[resistance_channels[resistance_counter++]] = buf.getSample (j, i);
+                    }
                 }
                 package[board_descr["default"]["timestamp_channel"].get<int> ()] = get_timestamp ();
+                if (impedance_mode)
+                {
+                    package[board_descr["default"]["package_num_channel"].get<int> ()] =
+                        impedance_package_num++;
+                }
                 push_package (package);
             }
             std::this_thread::sleep_for (std::chrono::milliseconds (1));
+            if (impedance_mode)
+            {
+                // some more sleep; twice every second should be more than enough
+                // if left out, it yields impedances at around 64 Hz
+                std::this_thread::sleep_for (std::chrono::milliseconds (500));
+            }
         }
         catch (...)
         {
@@ -293,6 +400,8 @@ int AntNeuroBoard::config_board (std::string config, std::string &response)
     std::string prefix = "sampling_rate:";
     std::string rv_prefix = "reference_range:";
     std::string bv_prefix = "bipolar_range:";
+    std::string mode_prefix = "impedance_mode:";
+    std::string get_info = "get_info";
 
     if (config.find (prefix) != std::string::npos)
     {
@@ -391,7 +500,49 @@ int AntNeuroBoard::config_board (std::string config, std::string &response)
 
         return (int)BrainFlowExitCodes::STATUS_OK;
     }
-    safe_logger (spdlog::level::err, "format is '{}value'", prefix.c_str ());
+    else if (config.find (mode_prefix) != std::string::npos)
+    {
+        bool new_impedance_mode;
+        std::string value = config.substr (mode_prefix.size ());
+
+        if (value == "0" || value == "1")
+        {
+            try
+            {
+                new_impedance_mode = static_cast<bool> (std::stod (value));
+            }
+            catch (...)
+            {
+                safe_logger (spdlog::level::err, "format is '{}value'", mode_prefix.c_str ());
+                return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+            }
+
+            impedance_mode = new_impedance_mode;
+            return (int)BrainFlowExitCodes::STATUS_OK;
+        }
+        else
+        {
+            safe_logger (spdlog::level::err, "not supported value provided");
+            safe_logger (spdlog::level::debug, "supported values: '0' or '1'");
+            return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+        }
+    }
+    else if (config == get_info) // return stringified JSON with info from ANT board
+    {
+        json j;
+        j["type"] = amp->getType ();
+        j["firmware_version"] = amp->getFirmwareVersion ();
+        j["serial_number"] = amp->getSerialNumber ();
+        j["sampling_rates"] = amp->getSamplingRatesAvailable ();
+        j["reference_ranges"] = amp->getReferenceRangesAvailable ();
+        j["bipolar_ranges"] = amp->getBipolarRangesAvailable ();
+        amplifier::power_state ps = amp->getPowerState ();
+        j["power_state"] = {{"is_powered", ps.is_powered}, {"is_charging", ps.is_charging},
+            {"charging_level", ps.charging_level}};
+        response = j.dump ();
+        return (int)BrainFlowExitCodes::STATUS_OK;
+    }
+    safe_logger (spdlog::level::err, "format is '{}value' or 'get_info'", prefix.c_str ());
     return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
 }
 

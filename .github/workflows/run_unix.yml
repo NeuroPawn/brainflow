@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        os: [ubuntu-20.04, macos-12]
+        os: [ubuntu-latest, macos-13]
 
     steps:
     # compile and prepare env
@@ -25,13 +25,12 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: '7.0.x'
-    - name: Install Python 3.7
-      uses: actions/setup-python@v3
+    - name: Install Python 3.10
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.7.7'
-        architecture: 'x64'
+        python-version: '3.11'
     - name: Install Python Dependencies
-      if: (matrix.os == 'ubuntu-20.04')
+      if: (matrix.os == 'ubuntu-latest')
       run: |
         sudo -H apt-get update -y
         sudo -H apt-get install -y python3-setuptools python3-pygments libbluetooth-dev
@@ -45,7 +44,7 @@ jobs:
       run: |
         npm install -g ts-node
     - name: Install Ninja
-      if: (matrix.os == 'macos-12')
+      if: (matrix.os == 'macos-13')
       uses: seanmiddleditch/gha-setup-ninja@master
       with:
         version: 1.10.2
@@ -63,7 +62,7 @@ jobs:
         java-version: 11.0.3
     # build simpleble outside from brainflow because of different deployment targets
     - name: Compile SimpleBLE MacOS
-      if: (matrix.os == 'macos-12')
+      if: (matrix.os == 'macos-13')
       run: |
         mkdir $GITHUB_WORKSPACE/third_party/SimpleBLE/simpleble/build
         cd $GITHUB_WORKSPACE/third_party/SimpleBLE/simpleble/build
@@ -71,7 +70,7 @@ jobs:
         ninja
         ninja install
     - name: Compile BrainFlow MacOS
-      if: (matrix.os == 'macos-12')
+      if: (matrix.os == 'macos-13')
       run: |
         mkdir $GITHUB_WORKSPACE/build
         cd $GITHUB_WORKSPACE/build
@@ -81,7 +80,7 @@ jobs:
       env:
         BRAINFLOW_VERSION: ${{ steps.version.outputs.version }}
     - name: Compile BrainFlow Ubuntu
-      if: (matrix.os == 'ubuntu-20.04')
+      if: (matrix.os == 'ubuntu-latest')
       run: |
         mkdir $GITHUB_WORKSPACE/build
         cd $GITHUB_WORKSPACE/build
@@ -92,7 +91,7 @@ jobs:
         BRAINFLOW_VERSION: ${{ steps.version.outputs.version }}
     - name: Compile BrainFlow in ManyLinux
       # bindings in production have to use libraries compiled inside this image!
-      if: (matrix.os == 'ubuntu-20.04')
+      if: (matrix.os == 'ubuntu-latest')
       run: |
         docker pull dockcross/manylinux_2_28-x64:20240418-88c04a4
         docker run -e BRAINFLOW_VERSION=$BRAINFLOW_VERSION -e GITHUB_WORKSPACE=$GITHUB_WORKSPACE -v $GITHUB_WORKSPACE:$GITHUB_WORKSPACE dockcross/manylinux_2_28-x64:20240418-88c04a4 /bin/bash -c "yum install -y bluez-libs-devel dbus-devel && /opt/python/cp36-cp36m/bin/pip3.6 install cmake==3.21.4 && cd $GITHUB_WORKSPACE && mkdir build_docker && cd build_docker && /opt/_internal/cpython-3.6.15/bin/cmake -DBRAINFLOW_VERSION=$BRAINFLOW_VERSION -DBUILD_ONNX=ON -DBUILD_BLE=ON -DBUILD_BLUETOOTH=ON -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/installed_docker -DCMAKE_BUILD_TYPE=Release .. && make && make install"
@@ -154,7 +153,7 @@ jobs:
     - name: Run unit tests
       run: $GITHUB_WORKSPACE/build/tests/brainflow_tests
     - name: Synthetic C# Test MacOS
-      if: (matrix.os == 'macos-12')
+      if: (matrix.os == 'macos-13')
       run: |
         cd $GITHUB_WORKSPACE/csharp_package/brainflow/examples/brainflow_get_data/bin/Release/net7.0
         cp $GITHUB_WORKSPACE/installed/lib/libBoardController.dylib $GITHUB_WORKSPACE/csharp_package/brainflow/examples/brainflow_get_data/bin/Release/net7.0/
@@ -164,7 +163,7 @@ jobs:
         LD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
         DYLD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
     - name: EEG Metrics C# Test MacOS
-      if: (matrix.os == 'macos-12')
+      if: (matrix.os == 'macos-13')
       run: |
         cd $GITHUB_WORKSPACE/csharp_package/brainflow/examples/eeg_metrics/bin/Release/net7.0
         cp $GITHUB_WORKSPACE/installed/lib/libBoardController.dylib $GITHUB_WORKSPACE/csharp_package/brainflow/examples/eeg_metrics/bin/Release/net7.0/
@@ -176,7 +175,7 @@ jobs:
         LD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
         DYLD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
     - name: Synthetic C# Test Ubuntu
-      if: (matrix.os == 'ubuntu-20.04')
+      if: (matrix.os == 'ubuntu-latest')
       run: |
         cd $GITHUB_WORKSPACE/csharp_package/brainflow/examples/brainflow_get_data/bin/Release/net7.0
         ./brainflow_get_data --board-id -1
@@ -185,7 +184,7 @@ jobs:
         LD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
         DYLD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
     - name: EEG Metrics C# Test Ubuntu
-      if: (matrix.os == 'ubuntu-20.04')
+      if: (matrix.os == 'ubuntu-latest')
       run: |
         cd $GITHUB_WORKSPACE/csharp_package/brainflow/examples/eeg_metrics/bin/Release/net7.0
         ./eeg_metrics --board-id -1
@@ -251,6 +250,8 @@ jobs:
       run: sudo -H python3 $GITHUB_WORKSPACE/emulator/brainflow_emulator/streaming_board_emulator.py python3 $GITHUB_WORKSPACE/python_package/examples/tests/brainflow_get_data.py --board-id -2 --ip-address 225.1.1.1 --ip-port 6677 --master-board -1
     - name: Streaming Python Markers
       run: sudo -H python3 $GITHUB_WORKSPACE/emulator/brainflow_emulator/streaming_board_emulator.py python3 $GITHUB_WORKSPACE/python_package/examples/tests/markers.py --board-id -2 --ip-address 225.1.1.1 --ip-port 6677 --master-board -1
+    - name: BioListener Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/emulator/brainflow_emulator/biolistener_emulator.py python3 $GITHUB_WORKSPACE/python_package/examples/tests/brainflow_get_data.py --board-id 64 --ip-address 127.0.0.1 --ip-port 12345
     - name: Denoising Python
       run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/denoising.py
     - name: Serialization Python
@@ -362,7 +363,7 @@ jobs:
       env:
         LD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
     - name: EEG Metrics Cpp Dyn Lib
-      if: (matrix.os == 'ubuntu-20.04')
+      if: (matrix.os == 'ubuntu-latest')
       run: $GITHUB_WORKSPACE/cpp_package/examples/ml/build/eeg_metrics_ci --board-id -1 --metric 2 --classifier 1 --model-file $GITHUB_WORKSPACE/cpp_package/examples/ml/build/libdyn_lib_test.so
       env:
         LD_LIBRARY_PATH: ${{ github.workspace }}/installed/lib
@@ -402,16 +403,16 @@ jobs:
         npm run bandpower_all
     # deploy started
     - name: Install AWS CLI
-      run: sudo -H python3 -m pip install awscli==1.21.10
+      run: sudo -H python3 -m pip install awscli
     - name: Push Libraries Linux Docker
-      if: ${{ github.event_name == 'push' && matrix.os == 'ubuntu-20.04' && github.repository == 'brainflow-dev/brainflow' }}
+      if: ${{ github.event_name == 'push' && matrix.os == 'ubuntu-latest' && github.repository == 'brainflow-dev/brainflow' }}
       run: |
         aws s3 cp $GITHUB_WORKSPACE/installed_docker/lib/ s3://brainflow/$GITHUB_SHA/linux --recursive
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     - name: Push Libraries MacOS Dev
-      if: ${{ github.event_name == 'push' && matrix.os == 'macos-12' && github.repository == 'brainflow-dev/brainflow' }}
+      if: ${{ github.event_name == 'push' && matrix.os == 'macos-13' && github.repository == 'brainflow-dev/brainflow' }}
       run: |
         aws s3 cp $GITHUB_WORKSPACE/installed/lib/ s3://brainflow/$GITHUB_SHA/macos_release --recursive
       env:
