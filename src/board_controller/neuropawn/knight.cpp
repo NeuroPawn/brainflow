@@ -45,8 +45,7 @@ Knight::Knight (int board_id, struct BrainFlowInputParams params) : Board (board
             }
             else
             {
-                safe_logger (spdlog::level::info,
-                    "No gain field in other_info, using default 12");
+                safe_logger (spdlog::level::info, "No gain field in other_info, using default 12");
             }
         }
         catch (json::parse_error &e)
