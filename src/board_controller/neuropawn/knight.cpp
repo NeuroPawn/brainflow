@@ -3,12 +3,16 @@
 #include <vector>
 
 #include "custom_cast.h"
+#include "json.hpp"
 #include "knight.h"
 #include "serial.h"
 #include "timestamp.h"
 
+using json = nlohmann::json;
+
 constexpr int Knight::start_byte;
 constexpr int Knight::end_byte;
+const std::set<int> Knight::allowed_gains = {1, 2, 3, 4, 6, 8, 12};
 
 Knight::Knight (int board_id, struct BrainFlowInputParams params) : Board (board_id, params)
 {
@@ -16,6 +20,45 @@ Knight::Knight (int board_id, struct BrainFlowInputParams params) : Board (board
     is_streaming = false;
     keep_alive = false;
     initialized = false;
+    gain = 12; // default gain value
+
+    // Parse gain from other_info if provided
+    if (!params.other_info.empty ())
+    {
+        try
+        {
+            json j = json::parse (params.other_info);
+            if (j.contains ("gain"))
+            {
+                int parsed_gain = j["gain"];
+                // Validate gain is one of allowed values
+                if (allowed_gains.count (parsed_gain))
+                {
+                    gain = parsed_gain;
+                    safe_logger (spdlog::level::info, "Knight board gain set to {}", gain);
+                }
+                else
+                {
+                    safe_logger (spdlog::level::warn,
+                        "Invalid gain value {} in other_info, using default 12", parsed_gain);
+                }
+            }
+            else
+            {
+                safe_logger (spdlog::level::info, "No gain field in other_info, using default 12");
+            }
+        }
+        catch (json::parse_error &e)
+        {
+            safe_logger (spdlog::level::warn,
+                "Failed to parse JSON from other_info: {}, using default gain 12", e.what ());
+        }
+        catch (json::exception &e)
+        {
+            safe_logger (spdlog::level::warn,
+                "JSON exception while parsing other_info: {}, using default gain 12", e.what ());
+        }
+    }
 }
 
 Knight::~Knight ()
@@ -136,7 +179,7 @@ void Knight::read_thread ()
 
     int res;
     unsigned char b[20] = {0};
-    float eeg_scale = 4 / float ((pow (2, 23) - 1)) / 12 * 1000000.;
+    float eeg_scale = 4 / float ((pow (2, 15) - 1)) / gain * 1000000.;
     int num_rows = board_descr["default"]["num_rows"];
     double *package = new double[num_rows];
     for (int i = 0; i < num_rows; i++)

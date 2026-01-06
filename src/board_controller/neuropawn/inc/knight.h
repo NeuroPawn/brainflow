@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include <thread>
 
 #include "board.h"
@@ -17,6 +18,7 @@ protected:
     Serial *serial;
 
     int min_package_size;
+    int gain;
 
     virtual int send_to_board (const char *msg);
     virtual int send_to_board (const char *msg, std::string &response);
@@ -24,6 +26,9 @@ protected:
     int open_port ();
     int set_port_settings ();
     void read_thread ();
+
+private:
+    static const std::set<int> allowed_gains;
 
 public:
     Knight (int board_id, struct BrainFlowInputParams params);
