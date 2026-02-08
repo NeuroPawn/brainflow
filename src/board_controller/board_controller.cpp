@@ -159,6 +159,9 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::FREEEEG128_BOARD:
             board = std::shared_ptr<Board> (new FreeEEG ((int)BoardIds::FREEEEG128_BOARD, params));
             break;
+        case BoardIds::IRONBCI_32_BOARD:
+            board = std::shared_ptr<Board> (new FreeEEG ((int)BoardIds::IRONBCI_32_BOARD, params));
+            break;
         case BoardIds::BRAINBIT_BLED_BOARD:
             board = std::shared_ptr<Board> (new BrainBitBLED (params));
             break;
