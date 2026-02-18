@@ -264,11 +264,14 @@ Ganglion
 
 **On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
 
+**Breaking change in 5.21.x, by default Ganglion board will use `FW version 3 <https://openbci.com/forum/index.php?p=/discussion/3721/ganglion-firmware-upgrade>`_, if you have FW version 2, you can force it using BrainFlowInputParams.**
+
 To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
 
 - :code:`BoardIds.GANGLION_BOARD`
 - :code:`serial_port`, e.g. COM4, /dev/ttyACM0, etc
 - *optoinal:* :code:`mac_address`, if not provided BrainFlow will try to autodiscover the device
+- *optoinal:* :code:`other_info`, if not provided BrainFlow will use fw version 3, available options are: fw:auto, fw:2, fw:3
 - *optional:* :code:`timeout`, timeout for device discovery, default is 15sec
 
 Initialization Example:
@@ -277,6 +280,8 @@ Initialization Example:
 
     params = BrainFlowInputParams()
     params.serial_port = "COM4"
+    # Use it only to override default fw version(3)
+    # params.other_info = "fw:2"
     board = BoardShim(BoardIds.GANGLION_BOARD, params)
 
 To get Ganglion's MAC address you can use:
@@ -310,6 +315,8 @@ Ganglion Native
 
 Unlike Ganglion board this BrainFlow board does not use BLED112 dongle, so you need to have BLE support on your device in order to use it.
 
+**Breaking change in 5.21.x, by default Ganglion board will use `FW version 3 <https://openbci.com/forum/index.php?p=/discussion/3721/ganglion-firmware-upgrade>`_, if you have FW version 2, you can force it using BrainFlowInputParams.**
+
 To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
 
 - :code:`BoardIds.GANGLION_NATIVE_BOARD`
@@ -321,6 +328,8 @@ Initialization Example:
 .. code-block:: python
 
     params = BrainFlowInputParams()
+    # Use it only if you have an old device with fw version 2
+    # params.other_info = "fw:2"
     board = BoardShim(BoardIds.GANGLION_NATIVE_BOARD, params)
 
 To get Ganglion's MAC address or device name you can use:
@@ -1416,7 +1425,7 @@ Knight Board
 
 To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
 
-- :code:`BoardIds.NEUROPAWN_KNIGHT_BOARD`
+- :code:`BoardIds.NEUROPAWN_KNIGHT_BOARD` or :code:`BoardIds.NEUROPAWN_KNIGHT_BOARD_IMU`
 - :code:`serial_port`, e.g. COM3, /dev/tty.*
 
 Initialization Example:
@@ -1425,7 +1434,10 @@ Initialization Example:
 
     params = BrainFlowInputParams()
     params.serial_port = "COM3"
-    board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD, params)
+    params.other_info = '{"gain": 6}' # optional: set gain to allowed values: 1, 2, 3, 4, 6, 8, 12 (default)
+    
+    board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD, params) # standard Knight Board
+    board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD_IMU, params) # Knight Board IMU
 
 **On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
 
@@ -1481,3 +1493,37 @@ Available :ref:`presets-label`:
 
 - :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG (EMG, ECG, EOG) data
 - :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Gyro, Accel, battery and ESP32 chip temperature data
+
+IronBCI
+--------
+
+IronBCI32
+~~~~~~~~~~
+
+.. image:: https://live.staticflickr.com/65535/55036534734_d467ed741e.jpg
+    :width: 500px
+    :height: 389px
+
+`Github <https://github.com/pieeg-club/ironbci-32>`_
+
+To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
+
+- :code:`BoardIds.IRONBCI_32_BOARD`
+- :code:`serial_port`, e.g. COM3
+
+Initialization Example:
+
+.. code-block:: python
+
+    params = BrainFlowInputParams()
+    params.serial_port = "COM3"
+    board = BoardShim(BoardIds.IRONBCI_32_BOARD, params)
+
+**On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
+
+Supported platforms:
+
+- Windows
+- Linux
+- MacOS
+- Devices like Raspberry Pi
