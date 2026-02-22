@@ -8,7 +8,8 @@
 #include "knightimu.h"
 #include "timestamp.h"
 
-KnightIMU::KnightIMU (int board_id, struct BrainFlowInputParams params) : KnightBase (board_id, params)
+KnightIMU::KnightIMU (int board_id, struct BrainFlowInputParams params)
+    : KnightBase (board_id, params)
 {
 }
 

@@ -59,8 +59,8 @@ int KnightBase::prepare_session ()
                 }
                 else
                 {
-                    safe_logger (spdlog::level::err,
-                        "Invalid gain value {} in other_info", parsed_gain);
+                    safe_logger (
+                        spdlog::level::err, "Invalid gain value {} in other_info", parsed_gain);
                     return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
                 }
             }
@@ -71,14 +71,13 @@ int KnightBase::prepare_session ()
         }
         catch (json::parse_error &e)
         {
-            safe_logger (spdlog::level::err,
-                "Failed to parse JSON from other_info: {}", e.what ());
+            safe_logger (spdlog::level::err, "Failed to parse JSON from other_info: {}", e.what ());
             return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
         }
         catch (json::exception &e)
         {
-            safe_logger (spdlog::level::err,
-                "JSON exception while parsing other_info: {}", e.what ());
+            safe_logger (
+                spdlog::level::err, "JSON exception while parsing other_info: {}", e.what ());
             return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
         }
     }
