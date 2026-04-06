@@ -16,60 +16,145 @@ BrainFlow is a library intended to obtain, parse and analyze EEG, EMG, ECG, and 
 
 It provides a uniform SDK to work with biosensors with a primary focus on neurointerfaces, all features available for free and distributed under MIT license.
 
-#### Advantages of BrainFlow:
+---
 
-* powerful API with many features to simplify development
-    * Straightforward API for data acquisition
-    * Powerful API for signal filtering, denoising, downsampling...
-    * Development tools like Synthetic board, Streaming board, logging API
-* easy to use
-    * BrainFlow has many bindings, you can choose programming language you like
-    * All programming languages provide the same API, so it's simple to switch
-    * API is uniform for all boards, it makes applications on top of BrainFlow almost board agnostic
-* easy to support and extend
-    * Code to read data and to perform signal processing is implemented only once in C/C++, bindings just call C/C++ methods
-    * Powerful CI/CD system which runs integrations tests for each commit automatically using BrainFlow's Emulator
-    * Simplified process to add new boards and methods
+The following documentation was **modified** to focus on instructions for boards from NeuroPawn. 
 
-## Resources
+To look at the original docs, click [here](https://github.com/brainflow-dev/brainflow)
 
-* [***BrainFlow Docs, Dev and User guides and other information***](https://brainflow.readthedocs.io)
-* [***BrainFlow's slack workspace***](https://openbraintalk.slack.com/)***, use this*** [***link to join***](https://communityinviter.com/apps/openbraintalk/join-brainflow-on-slack)
-* [***For BrainFlow Developers***](https://brainflow.readthedocs.io/en/master/BrainFlowDev.html)
+## NeuroPawn Knight Board
 
-## Contribution guidelines
+### Brainflow Setup Example (Python)
 
-If you want to contribute to BrainFlow, be sure to review the [contribution guidelines](https://brainflow.readthedocs.io/en/stable/BrainFlowDev.html). This project adheres to [BrainFlow's code of conduct](https://github.com/brainflow-dev/brainflow/blob/master/CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+```
+import brainflow as bf
+import time
 
-We use [GitHub issues](https://github.com/brainflow-dev/brainflow/issues) for tracking requests and bugs, please use BrainFlow's slack for general discussions.
+from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
 
-The BrainFlow project strives to abide by generally accepted best practices in open-source software development.
+class KnightBoard:
+    def __init__(self, serial_port: str, num_channels: int):
+        """Initialize and configure the Knight Board."""
+        self.params = BrainFlowInputParams()
+        self.params.serial_port = serial_port
+        # optional: set gain override (default 12)
+        self.params.other_info = '{"gain": 6}'
+        self.num_channels = num_channels
 
-## Build Status
-|          Build Type         	|                                                                                Status                                                                               	|
-|:---------------------------:	|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------:	|
-|        Windows Tests        	|   [![Run Windows](https://github.com/brainflow-dev/brainflow/actions/workflows/run_windows.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/run_windows.yml)  	|
-| Unix(Linux and MacOS) Tests 	| [![Run Unix](https://github.com/brainflow-dev/brainflow/actions/workflows/run_unix.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/run_unix.yml) 	|
-|        Android Tests        	|   [![Run Android NDK](https://github.com/brainflow-dev/brainflow/actions/workflows/run_android.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/run_android.yml)   	|
-|         Alpine Tests        	|       [![Run Alpine](https://github.com/brainflow-dev/brainflow/actions/workflows/run_alpine.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/run_alpine.yml)       	|
-|        Valgrind Tests       	|     [![Run Valgrind](https://github.com/brainflow-dev/brainflow/actions/workflows/valgrind.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/valgrind.yml)      	|
-|           CppCheck          	|    [![CppCheck](https://github.com/brainflow-dev/brainflow/actions/workflows/cppcheck.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/cppcheck.yml)   	|
-|         Clang-Format        	|   [![Clang Format](https://github.com/brainflow-dev/brainflow/actions/workflows/clang_format.yml/badge.svg?branch=master)](https://github.com/brainflow-dev/brainflow/actions/workflows/clang_format.yml)   	|  
+        # Initialize board
+        self.board_shim = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD.value, self.params)
+        self.board_id = self.board_shim.get_board_id()
+        self.eeg_channels = self.board_shim.get_exg_channels(self.board_id)
+        self.sampling_rate = self.board_shim.get_sampling_rate(self.board_id)
 
-## Brainflow Bindings
+    def start_stream(self, buffer_size: int = 450000):
+        """Start the data stream from the board."""
+        self.board_shim.prepare_session()
+        self.board_shim.start_stream(buffer_size)
+        print("Stream started.")
+        time.sleep(2)
+        for x in range(1, self.num_channels + 1):
+            time.sleep(0.5)
+            cmd = f"chon_{x}_12"
+            self.board_shim.config_board(cmd)
+            print(f"sending {cmd}")
+            time.sleep(1)
+            rld = f"rldadd_{x}"
+            self.board_shim.config_board(rld)
+            print(f"sending {rld}")
+            time.sleep(0.5)
 
-We support bindings for:
-* [Python](./python_package)
-* [Java](./java_package/brainflow/)
-* [R](./r_package/)
-* [C++](./cpp_package/)
-* [C#](./csharp_package/brainflow/)
-* [Matlab](./matlab_package/brainflow)
-* [Julia](./julia_package/brainflow)
+    def stop_stream(self):
+        """Stop the data stream and release resources."""
+        self.board_shim.stop_stream()
+        self.board_shim.release_session()
+        print("Stream stopped and session released.")
 
-## Partners and Sponsors
+Knight_board = KnightBoard("COM3", 8)
+Knight_board.start_stream()
 
-[![OpenBCI](https://live.staticflickr.com/65535/51618456586_7b533781e2.jpg)](https://openbci.com/)
+while True:
+    data = Knight_board.board_shim.get_board_data()
+    # do stuff with data
 
-## License: 
-[MIT](https://github.com/brainflow-dev/brainflow/blob/master/LICENSE)
+    if keyboard.is_pressed('q'):
+        Knight_board.stop_stream()
+        break
+```
+
+### BrainFlow Input Parameters
+
+To configure the NeuroPawn Knight board with BrainFlow, pass the parameters as strings into:
+
+    params.other_info = <parameter>
+
+#### Parameter 1: Set Global Gain
+
+**Purpose**: Sets the global gain for the board, used for scaling EEG data. This must match the gain set in the firmware (default 12).
+
+    params.other_info = '{'gain': 6}'
+
+##### Parameters:
+
+- gain: Specifies the gain value for the entire board. Allowable gain values are: [1, 2, 3, 4, 6, 8, 12 (recommended)].
+
+
+### BrainFlow Configuration Commands
+
+To configure the NeuroPawn Knight board with BrainFlow, pass the commands as strings into:
+    
+    board_shim.config_board(<command>)
+
+#### Command 1: Enable EEG Channel / Set Gain
+**Purpose**: Enables a specified channel with a specified gain, starting data acquisition on that channel. If the channel is already enabled, it will remain enabled, but will still update its gain.
+
+    f"chon_{channel}_{gain_value}"
+
+##### Parameters:
+
+- channel: The channel number to start the data acquisition. Replace this with the actual number of the channel you want to configure. One-indexed.
+
+- gain: Specifies the gain value for the channel to be enabled. Allowable gain values are: [1, 2, 3, 4, 6, 8, 12 (recommended)]. The gain value controls the amplification level of the EEG signal on the specified channel.
+
+#### Command 2: Disable EEG Channel
+**Purpose**: Disables a specified channel, stopping data acquisition on that channel.
+
+    f"choff_{channel_number}"
+
+##### Parameters:
+
+- channel_number: The channel number to **stop** the data acquisition. This is appended to *'choff'* to construct the configuration command. One-indexed.
+  
+#### Command 3: Toggle on RLD
+**Purpose**: Toogle **on** right leg drive for the specified channel.
+
+    f"rldadd_{channel_number}"
+
+##### Parameters:
+
+- channel_number: The channel number to toggle **on** the right leg drive. This number is converted to a string and appended to *'rldadd'* to create the configuration command. One-indexed.
+
+
+### Command 4: Toggle off RLD
+**Purpose**: Toogle **off** right leg drive for the specified channel.
+
+    f"rldremove_{channel}"
+
+#### Parameters:
+
+- channel_number: The channel number to toggle **off** the right leg drive. This number is converted to a string and appended to *'rldremove'* to create the configuration command. One-indexed.
+
+## NeuroPawn Knight IMU Board
+
+### IMU data channels (index):
+```bash
+Channel 11 = accelerometer x
+Channel 12 = accelerometer y
+Channel 13 = accelerometer z
+Channel 14 = gyroscope x
+Channel 15 = gyroscope y
+Channel 16 = gyroscope z
+Channel 17 = magnetometer x
+Channel 18 = magnetometer y
+Channel 19 = magnetometer z
+```
