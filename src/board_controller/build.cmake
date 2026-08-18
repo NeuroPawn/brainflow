@@ -77,6 +77,7 @@ SET (BOARD_CONTROLLER_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/enophone/enophone.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/ble_lib_board.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/muse/muse.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/muse/muse_athena.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/brainalive/brainalive.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/emotibit/emotibit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/ntl/ntl_wifi.cpp
@@ -87,6 +88,7 @@ SET (BOARD_CONTROLLER_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/neuropawn/knight_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/neuropawn/knight_imu.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/biolistener/biolistener.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/shimmer/shimmer3.cpp
 )
 
 include (${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/ant_neuro/build.cmake)
@@ -112,11 +114,11 @@ if (BUILD_BLUETOOTH)
 endif (BUILD_BLUETOOTH)
 
 if (BUILD_BLE)
-    add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/third_party/SimpleBLE/simpleble)
+    add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/third_party/SimpleBLE/simplecble)
 endif (BUILD_BLE)
 
 add_library (
-    ${BOARD_CONTROLLER_NAME} SHARED
+    ${BOARD_CONTROLLER_NAME} ${BRAINFLOW_CORE_LIBRARY_TYPE}
     ${BOARD_CONTROLLER_SRC}
 )
 
@@ -145,7 +147,7 @@ target_include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ant_neuro
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/ant_neuro/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/enophone/inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SimpleBLE/simpleble/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SimpleBLE/simplecble/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/brainalive/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/mentalab/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/emotibit/inc
@@ -155,9 +157,25 @@ target_include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/synchroni/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/neuropawn/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/biolistener/inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/shimmer/inc
 )
 
 target_compile_definitions(${BOARD_CONTROLLER_NAME} PRIVATE NOMINMAX BRAINFLOW_VERSION=${BRAINFLOW_VERSION})
+
+if (BUILD_BLE)
+    target_compile_definitions (${BOARD_CONTROLLER_NAME} PRIVATE BRAINFLOW_BUILD_BLE)
+    if (ANDROID)
+        target_compile_definitions (${BOARD_CONTROLLER_NAME} PRIVATE STATIC_SIMPLEBLE)
+        target_include_directories (
+            ${BOARD_CONTROLLER_NAME} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SimpleBLE/simpleble/include
+            ${CMAKE_BINARY_DIR}/simpleble/export
+            ${CMAKE_BINARY_DIR}/third_party/SimpleBLE/simplecble/export
+        )
+        add_dependencies (${BOARD_CONTROLLER_NAME} simplecble)
+        target_link_libraries (${BOARD_CONTROLLER_NAME} PRIVATE "$<TARGET_FILE:simplecble>")
+    endif (ANDROID)
+endif (BUILD_BLE)
 
 set_target_properties (${BOARD_CONTROLLER_NAME}
     PROPERTIES
@@ -190,47 +208,53 @@ if (BUILD_PERIPHERY)
     target_link_libraries (${BOARD_CONTROLLER_NAME} PRIVATE periphery ${CMAKE_THREAD_LIBS_INIT} dl)
 endif (BUILD_PERIPHERY)
 
-if (MSVC)
+if (BRAINFLOW_COPY_TO_PACKAGE_DIRS AND MSVC)
     add_custom_command (TARGET ${BOARD_CONTROLLER_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/nodejs_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/python_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/julia_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/java_package/brainflow/src/main/resources/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/csharp_package/brainflow/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/nodejs_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/python_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/julia_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/java_package/brainflow/src/main/resources/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/csharp_package/brainflow/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_controller.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/board_controller.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_info_getter.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/board_info_getter.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/inc/shared_export_matlab.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/shared_export.h"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/$<CONFIG>/${BOARD_CONTROLLER_COMPILED_NAME_DOT_LIB}" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME_DOT_LIB}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_LINKER_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME_DOT_LIB}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_controller.h" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/inc/board_controller.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_info_getter.h" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/inc/board_info_getter.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/inc/brainflow_constants.h" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/inc/brainflow_constants.h"
     )
-endif (MSVC)
-if (UNIX AND NOT ANDROID)
+endif (BRAINFLOW_COPY_TO_PACKAGE_DIRS AND MSVC)
+if (BRAINFLOW_COPY_TO_PACKAGE_DIRS AND UNIX AND NOT ANDROID)
     add_custom_command (TARGET ${BOARD_CONTROLLER_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/nodejs_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/python_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/julia_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/java_package/brainflow/src/main/resources/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/csharp_package/brainflow/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/nodejs_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/python_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/julia_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/java_package/brainflow/src/main/resources/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/csharp_package/brainflow/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_controller.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/board_controller.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_info_getter.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/board_info_getter.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/inc/shared_export_matlab.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/shared_export.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/inc/brainflow_constants.h" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/inc/brainflow_constants.h"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/matlab_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${BOARD_CONTROLLER_NAME}>" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/lib/${BOARD_CONTROLLER_COMPILED_NAME}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_controller.h" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/inc/board_controller.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/board_controller/inc/board_info_getter.h" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/inc/board_info_getter.h"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/inc/brainflow_constants.h" "${CMAKE_CURRENT_SOURCE_DIR}/rust_package/brainflow/inc/brainflow_constants.h"
     )
-endif (UNIX AND NOT ANDROID)
+endif (BRAINFLOW_COPY_TO_PACKAGE_DIRS AND UNIX AND NOT ANDROID)
 
 if (ANDROID)
     add_custom_command (TARGET ${BOARD_CONTROLLER_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/tools/jniLibs/${ANDROID_ABI}"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/compiled/${BOARD_CONTROLLER_COMPILED_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/jniLibs/${ANDROID_ABI}/${BOARD_CONTROLLER_COMPILED_NAME}"
     )
+    if (BUILD_BLE)
+        add_custom_command (TARGET ${BOARD_CONTROLLER_NAME} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:simplecble>" "${CMAKE_CURRENT_SOURCE_DIR}/tools/jniLibs/${ANDROID_ABI}/$<TARGET_FILE_NAME:simplecble>"
+        )
+    endif (BUILD_BLE)
     if (LibFTDI1_FOUND)
         add_custom_command (TARGET ${BOARD_CONTROLLER_NAME} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/java_package/android/src/main/libs/${ANDROID_ABI}/"
@@ -250,9 +274,9 @@ if (ANDROID)
     endif (LibFTDI1_FOUND)
 endif (ANDROID)
 
-if (UNIX AND NOT ANDROID)
+if (UNIX AND NOT ANDROID AND NOT BRAINFLOW_IOS)
     target_link_libraries (${BOARD_CONTROLLER_NAME} PRIVATE pthread dl)
-endif (UNIX AND NOT ANDROID)
+endif (UNIX AND NOT ANDROID AND NOT BRAINFLOW_IOS)
 if (ANDROID)
     find_library (log-lib log)
     target_link_libraries (${BOARD_CONTROLLER_NAME} PRIVATE log)

@@ -3,6 +3,12 @@
 #include "board_info_getter.h" // include it here for matlab
 #include "shared_export.h"
 
+#if defined(__ANDROID__)
+#include <jni.h>
+#else
+typedef const struct JNINativeInterface *JNIEnv; // A handle to use Java's JNI
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -22,8 +28,11 @@ extern "C"
         int preset, int *result, int board_id, const char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION get_board_data (int data_count, int preset,
         double *data_buf, int board_id, const char *json_brainflow_input_params);
+    SHARED_EXPORT int CALLING_CONVENTION get_board_sampling_rate (
+        int preset, int *sampling_rate, int board_id, const char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION config_board (const char *config, char *response,
-        int *response_len, int board_id, const char *json_brainflow_input_params);
+        int *response_len, int response_max_len, int board_id,
+        const char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION config_board_with_bytes (
         const char *bytes, int len, int board_id, const char *json_brainflow_input_params);
     SHARED_EXPORT int CALLING_CONVENTION is_prepared (
@@ -43,7 +52,6 @@ extern "C"
         int log_level, char *message);
 
     // platform types and methods
-    typedef const struct JNINativeInterface *JNIEnv; // A handle to use Java's JNI
     SHARED_EXPORT int CALLING_CONVENTION java_set_jnienv (JNIEnv *java_jnienv);
     SHARED_EXPORT int CALLING_CONVENTION get_version_board_controller (
         char *version, int *num_chars, int max_chars);

@@ -1,0 +1,631 @@
+diff --git a/cmake/epilogue.cmake b/cmake/epilogue.cmake
+index 2ff3dfd..f520d6f 100644
+--- a/cmake/epilogue.cmake
++++ b/cmake/epilogue.cmake
+@@ -9,14 +9,52 @@ if(PROJECT_IS_TOP_LEVEL)
+     file(WRITE ${CMAKE_BINARY_DIR}/.gitignore "*")
+ endif()
+ 
+-if(CMAKE_GENERATOR_PLATFORM MATCHES "^[Ww][Ii][Nn]32$")
+-    set(WINDOWS_TARGET_ARCH x86)
+-elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^[Xx]64$")
+-    set(WINDOWS_TARGET_ARCH x64)
+-endif()
+-
+-macro(apply_build_options
+-    TARGET
++if(CMAKE_GENERATOR_PLATFORM MATCHES "^[Ww][Ii][Nn]32$")
++    set(WINDOWS_TARGET_ARCH x86)
++elseif(CMAKE_GENERATOR_PLATFORM MATCHES "^[Xx]64$")
++    set(WINDOWS_TARGET_ARCH x64)
++endif()
++
++if(MSVC)
++    add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING -D_CRT_NONSTDC_NO_DEPRECATE)
++
++    if("${MSVC_RUNTIME}" STREQUAL "")
++        set(MSVC_RUNTIME "static")
++    endif()
++
++    set(MSVC_RUNTIME_VARIABLES
++        CMAKE_C_FLAGS_DEBUG
++        CMAKE_C_FLAGS_MINSIZEREL
++        CMAKE_C_FLAGS_RELEASE
++        CMAKE_C_FLAGS_RELWITHDEBINFO
++        CMAKE_CXX_FLAGS_DEBUG
++        CMAKE_CXX_FLAGS_MINSIZEREL
++        CMAKE_CXX_FLAGS_RELEASE
++        CMAKE_CXX_FLAGS_RELWITHDEBINFO)
++
++    if("${MSVC_RUNTIME}" STREQUAL "static")
++        message(STATUS "MSVC -> forcing use of statically-linked runtime.")
++        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
++        foreach(variable ${MSVC_RUNTIME_VARIABLES})
++            if("${${variable}}" MATCHES "/MD")
++                string(REGEX REPLACE "/MD" "/MT" ${variable} "${${variable}}")
++            endif()
++        endforeach()
++    elseif("${MSVC_RUNTIME}" STREQUAL "dynamic")
++        message(STATUS "MSVC -> forcing use of dynamically-linked runtime.")
++        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
++        foreach(variable ${MSVC_RUNTIME_VARIABLES})
++            if("${${variable}}" MATCHES "/MT")
++                string(REGEX REPLACE "/MT" "/MD" ${variable} "${${variable}}")
++            endif()
++        endforeach()
++    else()
++        message(FATAL_ERROR "Unsupported MSVC_RUNTIME value '${MSVC_RUNTIME}', expected 'static' or 'dynamic'.")
++    endif()
++endif()
++
++macro(apply_build_options
++    TARGET
+     PRIVATE_COMPILE_DEFINITIONS
+     PRIVATE_COMPILE_OPTIONS
+     PRIVATE_LINK_OPTIONS
+@@ -78,4 +116,4 @@ endmacro()
+ # Define the list of source files with relative paths
+ set(SIMPLEJNI_SOURCES
+     "${CMAKE_CURRENT_LIST_DIR}/../dependencies/internal/src/simplejni/Common.cpp"
+-)
+\ No newline at end of file
++)
+diff --git a/cmake/prelude.cmake b/cmake/prelude.cmake
+index 7770668..f20899b 100644
+--- a/cmake/prelude.cmake
++++ b/cmake/prelude.cmake
+@@ -1,8 +1,12 @@
+-cmake_minimum_required(VERSION 3.21)
+-
+-# Common configuration used by all projects in this repository
+-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/find)
++cmake_minimum_required(VERSION 3.21)
++
++if(POLICY CMP0091)
++    cmake_policy(SET CMP0091 NEW)
++endif()
++
++# Common configuration used by all projects in this repository
++set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
++list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/find)
+ 
+ include(${CMAKE_CURRENT_LIST_DIR}/parse_version.cmake)
+ parse_version(${CMAKE_CURRENT_LIST_DIR}/../VERSION SIMPLEBLE)
+diff --git a/simpleble/CMakeLists.txt b/simpleble/CMakeLists.txt
+index 1e851e0..144a99c 100644
+--- a/simpleble/CMakeLists.txt
++++ b/simpleble/CMakeLists.txt
+@@ -324,11 +324,9 @@ elseif(SIMPLEBLE_BACKEND_WINDOWS)
+         list(APPEND PRIVATE_COMPILE_OPTIONS "/Gd")
+         # /EHsc -> Use the standard C++ exception handling model. https://learn.microsoft.com/en-us/cpp/build/reference/eh-exception-handling-model
+         list(APPEND PRIVATE_COMPILE_OPTIONS "/EHsc")
+-        # /WX -> Treats all warnings as errors.
+-        list(APPEND PRIVATE_COMPILE_OPTIONS "/WX")
+-        # /W1 -> Use the lowest level of warnings, as there are some unsafe functions that MSVC doesn't like.
+-        # TODO: This should be removed once the warnings are fixed.
+-        list(APPEND PRIVATE_COMPILE_OPTIONS "/W1")
++        # /W1 -> Use the lowest level of warnings, as there are some unsafe functions that MSVC doesn't like.
++        # TODO: This should be removed once the warnings are fixed.
++        list(APPEND PRIVATE_COMPILE_OPTIONS "/W1")
+     endif()
+ 
+     target_sources(simpleble PRIVATE
+diff --git a/simplecble/CMakeLists.txt b/simplecble/CMakeLists.txt
+index d1b3590..4a964dd 100644
+--- a/simplecble/CMakeLists.txt
++++ b/simplecble/CMakeLists.txt
+@@ -12,13 +12,29 @@ project(
+ 
+ include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/epilogue.cmake)
+ 
+-include(GenerateExportHeader)
+-include(GNUInstallDirs)
+-
+-if(SIMPLECBLE_TEST)
+-    message(STATUS "Building tests requires plain version of SimpleBLE")
+-    set(SIMPLEBLE_PLAIN ON)
+-endif()
++include(GenerateExportHeader)
++include(GNUInstallDirs)
++
++if(APPLE)
++    set(SIMPLECBLE_OUTPUT_NAME "simpleble-c")
++    set(SIMPLECBLE_FILE_NAME "libsimpleble-c.dylib")
++elseif(UNIX)
++    set(SIMPLECBLE_OUTPUT_NAME "simpleble-c")
++    set(SIMPLECBLE_FILE_NAME "libsimpleble-c.so")
++else()
++    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
++        set(SIMPLECBLE_OUTPUT_NAME "simpleble-c")
++        set(SIMPLECBLE_FILE_NAME "simpleble-c.dll")
++    else()
++        set(SIMPLECBLE_OUTPUT_NAME "simpleble-c32")
++        set(SIMPLECBLE_FILE_NAME "simpleble-c32.dll")
++    endif()
++endif()
++
++if(SIMPLECBLE_TEST)
++    message(STATUS "Building tests requires plain version of SimpleBLE")
++    set(SIMPLEBLE_PLAIN ON)
++endif()
+ 
+ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../simpleble ${CMAKE_BINARY_DIR}/simpleble)
+ 
+@@ -29,8 +45,8 @@ set(SIMPLEBLE_C_SRC
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/logging.cpp
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cpp)
+ 
+-add_library(simplecble ${SIMPLEBLE_C_SRC})
+-add_library(simplecble::simplecble ALIAS simplecble)
++add_library(simplecble SHARED ${SIMPLEBLE_C_SRC})
++add_library(simplecble::simplecble ALIAS simplecble)
+ 
+ # NOTE: This is a temporary alias to ensure backwards compatibility with the old C bindings.
+ add_library(simpleble-c ALIAS simplecble)
+@@ -43,15 +59,18 @@ set_target_properties(simplecble PROPERTIES
+     CXX_STANDARD_REQUIRED YES
+     CXX_EXTENSIONS NO
+     POSITION_INDEPENDENT_CODE ON
+-    DEFINE_SYMBOL simpleble_EXPORTS
+-    VERSION "${PROJECT_VERSION}"
+-    SOVERSION "${PROJECT_VERSION_MAJOR}"
+-    EXPORT_NAME simplecble
+-    OUTPUT_NAME simplecble
+-    RELEASE_POSTFIX ""
+-    RELWITHDEBINFO_POSTFIX "-relwithdebinfo"
+-    MINSIZEREL_POSTFIX "-minsizerel"
+-    DEBUG_POSTFIX "-debug")
++    DEFINE_SYMBOL simpleble_EXPORTS
++    VERSION "${PROJECT_VERSION}"
++    SOVERSION "${PROJECT_VERSION_MAJOR}"
++    EXPORT_NAME simplecble
++    OUTPUT_NAME ${SIMPLECBLE_OUTPUT_NAME}
++    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled
++    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled
++    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled
++    RELEASE_POSTFIX ""
++    RELWITHDEBINFO_POSTFIX "-relwithdebinfo"
++    MINSIZEREL_POSTFIX "-minsizerel"
++    DEBUG_POSTFIX "")
+ 
+ # TODO: We need to migrate everything internally to use the new export header.
+ generate_export_header(
+@@ -72,12 +91,12 @@ target_include_directories(simplecble SYSTEM PUBLIC
+ target_link_libraries(simplecble PRIVATE simpleble::simpleble)
+ target_compile_definitions(simplecble PRIVATE SIMPLEBLE_VERSION="${PROJECT_VERSION}")
+ 
+-# Apply OS-specific settings for simplecble
+-if(SIMPLEBLE_BACKEND_LINUX)
+-    set_property(TARGET simplecble PROPERTY INSTALL_RPATH $ORIGIN)
+-elseif(SIMPLEBLE_BACKEND_MACOS)
+-    set_property(TARGET simplecble PROPERTY INSTALL_RPATH @loader_path)
+-endif()
++# Apply OS-specific settings for simplecble
++if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
++    set_property(TARGET simplecble PROPERTY INSTALL_RPATH $ORIGIN)
++elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
++    set_property(TARGET simplecble PROPERTY INSTALL_RPATH @loader_path)
++endif()
+ 
+ apply_build_options(simplecble
+     "${PRIVATE_COMPILE_DEFINITIONS}"
+@@ -85,15 +104,38 @@ apply_build_options(simplecble
+     "${PRIVATE_LINK_OPTIONS}"
+     "${PUBLIC_LINK_OPTIONS}")
+ 
+-install(
+-    TARGETS simplecble
+-    EXPORT simplecble-config
+-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+-
+-install(
+-    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/simplecble/
++install(
++    TARGETS simplecble
++    EXPORT simplecble-config
++    ARCHIVE DESTINATION lib
++    LIBRARY DESTINATION lib
++    RUNTIME DESTINATION lib)
++
++if(MSVC)
++    add_custom_command(TARGET simplecble POST_BUILD
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../python_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../java_package/brainflow/src/main/resources/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../csharp_package/brainflow/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../matlab_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../julia_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../rust_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/$<CONFIG>/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../nodejs_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++    )
++endif()
++if(UNIX AND NOT ANDROID)
++    add_custom_command(TARGET simplecble POST_BUILD
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../python_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../julia_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../java_package/brainflow/src/main/resources/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../csharp_package/brainflow/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../matlab_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../rust_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/../../../compiled/${SIMPLECBLE_FILE_NAME}" "${CMAKE_CURRENT_SOURCE_DIR}/../../../nodejs_package/brainflow/lib/${SIMPLECBLE_FILE_NAME}"
++    )
++endif()
++
++install(
++    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/simplecble/
+     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/simplecble)
+ 
+ if(SIMPLECBLE_TEST)
+diff --git a/simpleble/src/backends/android/AdapterAndroid.cpp b/simpleble/src/backends/android/AdapterAndroid.cpp
+index 1db187fd..37511b79 100644
+--- a/simpleble/src/backends/android/AdapterAndroid.cpp
++++ b/simpleble/src/backends/android/AdapterAndroid.cpp
+@@ -20,0 +21,4 @@ AdapterAndroid::AdapterAndroid() {
++        if (!this->scanning_) {
++            return;
++        }
++
+@@ -71 +74,0 @@ void AdapterAndroid::scan_start() {
+-    _btScanner.startScan(_btScanCallback);
+@@ -72,0 +76 @@ void AdapterAndroid::scan_start() {
++    _btScanner.startScan(_btScanCallback);
+@@ -77 +80,0 @@ void AdapterAndroid::scan_stop() {
+-    _btScanner.stopScan(_btScanCallback);
+@@ -78,0 +82 @@ void AdapterAndroid::scan_stop() {
++    _btScanner.stopScan(_btScanCallback);
+diff --git a/simpleble/src/backends/android/PeripheralAndroid.cpp b/simpleble/src/backends/android/PeripheralAndroid.cpp
+index 1e130581..93d1dc67 100644
+--- a/simpleble/src/backends/android/PeripheralAndroid.cpp
++++ b/simpleble/src/backends/android/PeripheralAndroid.cpp
+@@ -9 +8,0 @@
+-#include <simpleble/Exceptions.h>
+@@ -10,0 +10 @@
++#include <simpleble/Exceptions.h>
+@@ -18,0 +19,4 @@ using namespace std::chrono_literals;
++namespace {
++constexpr int ANDROID_REQUESTED_MTU = 517;
++}
++
+@@ -26,2 +30,4 @@ PeripheralAndroid::PeripheralAndroid(Android::BluetoothDevice device) : _device(
+-            // If a connection has been established, request service discovery.
+-            _gatt.discoverServices();
++            if (!_gatt.requestMtu(ANDROID_REQUESTED_MTU)) {
++                SIMPLEBLE_LOG_WARN("Failed to request Android GATT MTU");
++                _gatt.discoverServices();
++            }
+@@ -35,0 +42,2 @@ PeripheralAndroid::PeripheralAndroid(Android::BluetoothDevice device) : _device(
++    _btGattCallback.set_callback_onMtuChanged([this]() { _gatt.discoverServices(); });
++
+diff --git a/simpleble/src/backends/android/bridge/BluetoothGattCallback.cpp b/simpleble/src/backends/android/bridge/BluetoothGattCallback.cpp
+index 75f7b426..f9de8e58 100644
+--- a/simpleble/src/backends/android/bridge/BluetoothGattCallback.cpp
++++ b/simpleble/src/backends/android/bridge/BluetoothGattCallback.cpp
+@@ -4 +3,0 @@
+-#include <simplejni/Common.hpp>
+@@ -5,0 +5 @@
++#include <simplejni/Common.hpp>
+@@ -14 +14,3 @@ jmethodID BluetoothGattCallback::_constructor = nullptr;
+-kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, BluetoothGattCallback*, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>> BluetoothGattCallback::_map;
++kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, BluetoothGattCallback*,
++              SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++    BluetoothGattCallback::_map;
+@@ -18,4 +20,5 @@ const SimpleJNI::JNIDescriptor BluetoothGattCallback::descriptor{
+-    "org/simpleble/android/bridge/BluetoothGattCallback", // Java class name
+-    &_cls,                                                // Where to store the jclass
+-    {                                                     // Methods to preload
+-     {"<init>", "()V", &_constructor}                     // Constructor
++    "org/simpleble/android/bridge/BluetoothGattCallback",  // Java class name
++    &_cls,                                                 // Where to store the jclass
++    {
++        // Methods to preload
++        {"<init>", "()V", &_constructor}  // Constructor
+@@ -38 +41,2 @@ BluetoothGattCallback::BluetoothGattCallback() : connected(false), services_disc
+-        throw std::runtime_error("BluetoothGattCallback JNI resources not preloaded. Ensure SimpleJNI::Registrar::preload() is called.");
++        throw std::runtime_error(
++            "BluetoothGattCallback JNI resources not preloaded. Ensure SimpleJNI::Registrar::preload() is called.");
+@@ -71,2 +75,11 @@ void BluetoothGattCallback::set_callback_onServicesDiscovered(std::function<void
+-void BluetoothGattCallback::set_callback_onCharacteristicChanged(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic,
+-                                                                 std::function<void(std::vector<uint8_t>)> callback) {
++void BluetoothGattCallback::set_callback_onMtuChanged(std::function<void(void)> callback) {
++    if (callback) {
++        _callback_onMtuChanged.load(callback);
++    } else {
++        _callback_onMtuChanged.unload();
++    }
++}
++
++void BluetoothGattCallback::set_callback_onCharacteristicChanged(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic,
++    std::function<void(std::vector<uint8_t>)> callback) {
+@@ -80 +93,2 @@ void BluetoothGattCallback::set_callback_onCharacteristicChanged(SimpleJNI::Obje
+-void BluetoothGattCallback::clear_callback_onCharacteristicChanged(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
++void BluetoothGattCallback::clear_callback_onCharacteristicChanged(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
+@@ -84 +98,2 @@ void BluetoothGattCallback::clear_callback_onCharacteristicChanged(SimpleJNI::Ob
+-void BluetoothGattCallback::set_flag_characteristicWritePending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
++void BluetoothGattCallback::set_flag_characteristicWritePending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
+@@ -91 +106,2 @@ void BluetoothGattCallback::set_flag_characteristicWritePending(SimpleJNI::Objec
+-void BluetoothGattCallback::clear_flag_characteristicWritePending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
++void BluetoothGattCallback::clear_flag_characteristicWritePending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
+@@ -100 +116,2 @@ void BluetoothGattCallback::clear_flag_characteristicWritePending(SimpleJNI::Obj
+-void BluetoothGattCallback::wait_flag_characteristicWritePending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
++void BluetoothGattCallback::wait_flag_characteristicWritePending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
+@@ -111 +128,2 @@ void BluetoothGattCallback::wait_flag_characteristicWritePending(SimpleJNI::Obje
+-void BluetoothGattCallback::set_flag_characteristicReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
++void BluetoothGattCallback::set_flag_characteristicReadPending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
+@@ -118,2 +136,2 @@ void BluetoothGattCallback::set_flag_characteristicReadPending(SimpleJNI::Object
+-void BluetoothGattCallback::clear_flag_characteristicReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic,
+-                                                                 std::vector<uint8_t> value) {
++void BluetoothGattCallback::clear_flag_characteristicReadPending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic, std::vector<uint8_t> value) {
+@@ -129 +147,2 @@ void BluetoothGattCallback::clear_flag_characteristicReadPending(SimpleJNI::Obje
+-std::vector<uint8_t> BluetoothGattCallback::wait_flag_characteristicReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
++std::vector<uint8_t> BluetoothGattCallback::wait_flag_characteristicReadPending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic) {
+@@ -142 +161,2 @@ std::vector<uint8_t> BluetoothGattCallback::wait_flag_characteristicReadPending(
+-void BluetoothGattCallback::set_flag_descriptorWritePending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
++void BluetoothGattCallback::set_flag_descriptorWritePending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
+@@ -149 +169,2 @@ void BluetoothGattCallback::set_flag_descriptorWritePending(SimpleJNI::Object<Si
+-void BluetoothGattCallback::clear_flag_descriptorWritePending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
++void BluetoothGattCallback::clear_flag_descriptorWritePending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
+@@ -158 +179,2 @@ void BluetoothGattCallback::clear_flag_descriptorWritePending(SimpleJNI::Object<
+-void BluetoothGattCallback::wait_flag_descriptorWritePending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
++void BluetoothGattCallback::wait_flag_descriptorWritePending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
+@@ -169 +191,2 @@ void BluetoothGattCallback::wait_flag_descriptorWritePending(SimpleJNI::Object<S
+-void BluetoothGattCallback::set_flag_descriptorReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
++void BluetoothGattCallback::set_flag_descriptorReadPending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
+@@ -176 +199,2 @@ void BluetoothGattCallback::set_flag_descriptorReadPending(SimpleJNI::Object<Sim
+-void BluetoothGattCallback::clear_flag_descriptorReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor, std::vector<uint8_t> value) {
++void BluetoothGattCallback::clear_flag_descriptorReadPending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor, std::vector<uint8_t> value) {
+@@ -186 +210,2 @@ void BluetoothGattCallback::clear_flag_descriptorReadPending(SimpleJNI::Object<S
+-std::vector<uint8_t> BluetoothGattCallback::wait_flag_descriptorReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
++std::vector<uint8_t> BluetoothGattCallback::wait_flag_descriptorReadPending(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor) {
+@@ -201 +226,2 @@ std::vector<uint8_t> BluetoothGattCallback::wait_flag_descriptorReadPending(Simp
+-void BluetoothGattCallback::jni_onConnectionStateChangeCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint status, jint new_state) {
++void BluetoothGattCallback::jni_onConnectionStateChangeCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint status, jint new_state) {
+@@ -211 +237,2 @@ void BluetoothGattCallback::jni_onConnectionStateChangeCallback(SimpleJNI::Objec
+-void BluetoothGattCallback::jni_onServicesDiscoveredCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint status) {
++void BluetoothGattCallback::jni_onServicesDiscoveredCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++                                                             jint status) {
+@@ -228,2 +255,4 @@ void BluetoothGattCallback::jni_onServiceChangedCallback(SimpleJNI::Object<Simpl
+-void BluetoothGattCallback::jni_onCharacteristicChangedCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic_obj,
+-                                                                SimpleJNI::ByteArray<SimpleJNI::GlobalRef> value) {
++void BluetoothGattCallback::jni_onCharacteristicChangedCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic_obj,
++    SimpleJNI::ByteArray<SimpleJNI::GlobalRef> value) {
+@@ -240,2 +269,4 @@ void BluetoothGattCallback::jni_onCharacteristicChangedCallback(SimpleJNI::Objec
+-void BluetoothGattCallback::jni_onCharacteristicReadCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic_obj,
+-                                                             SimpleJNI::ByteArray<SimpleJNI::GlobalRef> value, jint status) {
++void BluetoothGattCallback::jni_onCharacteristicReadCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic_obj,
++    SimpleJNI::ByteArray<SimpleJNI::GlobalRef> value, jint status) {
+@@ -249,2 +280,3 @@ void BluetoothGattCallback::jni_onCharacteristicReadCallback(SimpleJNI::Object<S
+-void BluetoothGattCallback::jni_onCharacteristicWriteCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic_obj,
+-                                                              jint status) {
++void BluetoothGattCallback::jni_onCharacteristicWriteCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic_obj, jint status) {
+@@ -258,2 +290,4 @@ void BluetoothGattCallback::jni_onCharacteristicWriteCallback(SimpleJNI::Object<
+-void BluetoothGattCallback::jni_onDescriptorReadCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor_obj,
+-                                                         SimpleJNI::ByteArray<SimpleJNI::GlobalRef> value, jint status) {
++void BluetoothGattCallback::jni_onDescriptorReadCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor_obj, SimpleJNI::ByteArray<SimpleJNI::GlobalRef> value,
++    jint status) {
+@@ -267,2 +301,3 @@ void BluetoothGattCallback::jni_onDescriptorReadCallback(SimpleJNI::Object<Simpl
+-void BluetoothGattCallback::jni_onDescriptorWriteCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor_obj,
+-                                                          jint status) {
++void BluetoothGattCallback::jni_onDescriptorWriteCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor_obj, jint status) {
+@@ -276,2 +311,3 @@ void BluetoothGattCallback::jni_onDescriptorWriteCallback(SimpleJNI::Object<Simp
+-void BluetoothGattCallback::jni_onMtuChangedCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint mtu, jint status) {
+-    auto msg = "onMtuChangedCallback";
++void BluetoothGattCallback::jni_onMtuChangedCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++                                                     jint mtu, jint status) {
++    auto msg = fmt::format("onMtuChangedCallback mtu: {} status: {}", mtu, status);
+@@ -281,0 +318 @@ void BluetoothGattCallback::jni_onMtuChangedCallback(SimpleJNI::Object<SimpleJNI
++    SAFE_CALLBACK_CALL(obj->_callback_onMtuChanged);
+@@ -284 +321,2 @@ void BluetoothGattCallback::jni_onMtuChangedCallback(SimpleJNI::Object<SimpleJNI
+-void BluetoothGattCallback::jni_onPhyReadCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint tx_phy, jint rx_phy, jint status) {
++void BluetoothGattCallback::jni_onPhyReadCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++                                                  jint tx_phy, jint rx_phy, jint status) {
+@@ -291 +329,2 @@ void BluetoothGattCallback::jni_onPhyReadCallback(SimpleJNI::Object<SimpleJNI::G
+-void BluetoothGattCallback::jni_onPhyUpdateCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint tx_phy, jint rx_phy, jint status) {
++void BluetoothGattCallback::jni_onPhyUpdateCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++                                                    jint tx_phy, jint rx_phy, jint status) {
+@@ -298 +337,2 @@ void BluetoothGattCallback::jni_onPhyUpdateCallback(SimpleJNI::Object<SimpleJNI:
+-void BluetoothGattCallback::jni_onReadRemoteRssiCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint rssi, jint status) {
++void BluetoothGattCallback::jni_onReadRemoteRssiCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj,
++                                                         jint rssi, jint status) {
+@@ -305 +345,2 @@ void BluetoothGattCallback::jni_onReadRemoteRssiCallback(SimpleJNI::Object<Simpl
+-void BluetoothGattCallback::jni_onReliableWriteCompletedCallback(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint status) {
++void BluetoothGattCallback::jni_onReliableWriteCompletedCallback(
++    SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> thiz_obj, jint status) {
+@@ -432 +473 @@ JNIEXPORT void JNICALL Java_org_simpleble_android_bridge_BluetoothGattCallback_o
+-}  // extern "C"
+\ No newline at end of file
++}  // extern "C"
+diff --git a/simpleble/src/backends/android/bridge/BluetoothGattCallback.h b/simpleble/src/backends/android/bridge/BluetoothGattCallback.h
+index 9431d149..c08017fc 100644
+--- a/simpleble/src/backends/android/bridge/BluetoothGattCallback.h
++++ b/simpleble/src/backends/android/bridge/BluetoothGattCallback.h
+@@ -23,0 +24 @@ class BluetoothGattCallback {
++    void set_callback_onMtuChanged(std::function<void(void)> callback);
+@@ -34,2 +35,4 @@ class BluetoothGattCallback {
+-    void clear_flag_characteristicReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic, std::vector<uint8_t> value);
+-    std::vector<uint8_t> wait_flag_characteristicReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic);
++    void clear_flag_characteristicReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic,
++                                              std::vector<uint8_t> value);
++    std::vector<uint8_t> wait_flag_characteristicReadPending(
++        SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> characteristic);
+@@ -42 +45,2 @@ class BluetoothGattCallback {
+-    void clear_flag_descriptorReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor, std::vector<uint8_t> value);
++    void clear_flag_descriptorReadPending(SimpleJNI::Object<SimpleJNI::GlobalRef, jobject> descriptor,
++                                          std::vector<uint8_t> value);
+@@ -80 +84,3 @@ class BluetoothGattCallback {
+-    static kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, BluetoothGattCallback*, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>> _map;
++    static kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, BluetoothGattCallback*,
++                         SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++        _map;
+@@ -85,0 +92 @@ class BluetoothGattCallback {
++    kvn::safe_callback<void()> _callback_onMtuChanged;
+@@ -87 +94,2 @@ class BluetoothGattCallback {
+-    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, kvn::safe_callback<void(std::vector<uint8_t>)>, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, kvn::safe_callback<void(std::vector<uint8_t>)>,
++                  SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
+@@ -90,4 +98,12 @@ class BluetoothGattCallback {
+-    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>> _flag_characteristicWritePending;
+-    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>> _flag_characteristicReadPending;
+-    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>> _flag_descriptorWritePending;
+-    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData, SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>> _flag_descriptorReadPending;
++    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData,
++                  SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++        _flag_characteristicWritePending;
++    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData,
++                  SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++        _flag_characteristicReadPending;
++    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData,
++                  SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++        _flag_descriptorWritePending;
++    kvn::safe_map<SimpleJNI::Object<SimpleJNI::GlobalRef, jobject>, FlagData,
++                  SimpleJNI::ObjectComparator<SimpleJNI::GlobalRef, jobject>>
++        _flag_descriptorReadPending;
+@@ -102 +118 @@ class BluetoothGattCallback {
+-}  // namespace SimpleBLE
+\ No newline at end of file
++}  // namespace SimpleBLE
+diff --git a/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.cpp b/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.cpp
+index e12c9d8b..65064618 100644
+--- a/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.cpp
++++ b/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.cpp
+@@ -21,0 +22 @@ jmethodID BluetoothGatt::_method_requestConnectionPriority = nullptr;
++jmethodID BluetoothGatt::_method_requestMtu = nullptr;
+@@ -24,15 +25,16 @@ const SimpleJNI::JNIDescriptor BluetoothGatt::descriptor{
+-    "android/bluetooth/BluetoothGatt", // Java class name
+-    &_cls,                             // Where to store the jclass
+-    {                                  // Methods to preload
+-        {"close", "()V", &_method_close},
+-        {"connect", "()Z", &_method_connect},
+-        {"disconnect", "()V", &_method_disconnect},
+-        {"discoverServices", "()Z", &_method_discoverServices},
+-        {"getServices", "()Ljava/util/List;", &_method_getServices},
+-        {"readCharacteristic", "(Landroid/bluetooth/BluetoothGattCharacteristic;)Z", &_method_readCharacteristic},
+-        {"readDescriptor", "(Landroid/bluetooth/BluetoothGattDescriptor;)Z", &_method_readDescriptor},
+-        {"setCharacteristicNotification", "(Landroid/bluetooth/BluetoothGattCharacteristic;Z)Z", &_method_setCharacteristicNotification},
+-        {"writeCharacteristic", "(Landroid/bluetooth/BluetoothGattCharacteristic;)Z", &_method_writeCharacteristic},
+-        {"writeDescriptor", "(Landroid/bluetooth/BluetoothGattDescriptor;)Z", &_method_writeDescriptor},
+-        {"requestConnectionPriority", "(I)Z", &_method_requestConnectionPriority}
+-    }};
++    "android/bluetooth/BluetoothGatt",  // Java class name
++    &_cls,                              // Where to store the jclass
++    {                                   // Methods to preload
++     {"close", "()V", &_method_close},
++     {"connect", "()Z", &_method_connect},
++     {"disconnect", "()V", &_method_disconnect},
++     {"discoverServices", "()Z", &_method_discoverServices},
++     {"getServices", "()Ljava/util/List;", &_method_getServices},
++     {"readCharacteristic", "(Landroid/bluetooth/BluetoothGattCharacteristic;)Z", &_method_readCharacteristic},
++     {"readDescriptor", "(Landroid/bluetooth/BluetoothGattDescriptor;)Z", &_method_readDescriptor},
++     {"setCharacteristicNotification", "(Landroid/bluetooth/BluetoothGattCharacteristic;Z)Z",
++      &_method_setCharacteristicNotification},
++     {"writeCharacteristic", "(Landroid/bluetooth/BluetoothGattCharacteristic;)Z", &_method_writeCharacteristic},
++     {"writeDescriptor", "(Landroid/bluetooth/BluetoothGattDescriptor;)Z", &_method_writeDescriptor},
++     {"requestConnectionPriority", "(I)Z", &_method_requestConnectionPriority},
++     {"requestMtu", "(I)Z", &_method_requestMtu}}};
+@@ -113,0 +116,5 @@ bool BluetoothGatt::requestConnectionPriority(int connectionPriority) {
++bool BluetoothGatt::requestMtu(int mtu) {
++    if (!_obj) throw std::runtime_error("BluetoothGatt is not initialized");
++    return _obj.call_boolean_method(_method_requestMtu, mtu);
++}
++
+diff --git a/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.h b/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.h
+index 131f5bea..6bac0d57 100644
+--- a/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.h
++++ b/simpleble/src/backends/android/types/android/bluetooth/BluetoothGatt.h
+@@ -15 +14,0 @@ class BluetoothGatt {
+-
+@@ -45 +44 @@ class BluetoothGatt {
+-    // bool requestMtu(int mtu);
++    bool requestMtu(int mtu);
+@@ -68,0 +68 @@ class BluetoothGatt {
++    static jmethodID _method_requestMtu;
+diff --git a/simplecble/src/adapter.cpp b/simplecble/src/adapter.cpp
+index b6a73d91..3cc478e3 100644
+--- a/simplecble/src/adapter.cpp
++++ b/simplecble/src/adapter.cpp
+@@ -375 +375 @@ simpleble_err_t simpleble_adapter_set_callback_on_scan_found(
+-    if (handle == nullptr || callback == nullptr) {
++    if (handle == nullptr) {
+@@ -380,0 +381,4 @@ simpleble_err_t simpleble_adapter_set_callback_on_scan_found(
++        if (callback == nullptr) {
++            adapter->set_callback_on_scan_found(nullptr);
++            return SIMPLEBLE_SUCCESS;
++        }
+@@ -389 +393 @@ simpleble_err_t simpleble_adapter_set_callback_on_scan_found(
+-}
+\ No newline at end of file
++}
+diff --git a/simpledroidbridge/src/main/java/org/simpleble/android/bridge/BluetoothGattCallback.java b/simpledroidbridge/src/main/java/org/simpleble/android/bridge/BluetoothGattCallback.java
+index e9ac75ee..435468c5 100644
+--- a/simpledroidbridge/src/main/java/org/simpleble/android/bridge/BluetoothGattCallback.java
++++ b/simpledroidbridge/src/main/java/org/simpleble/android/bridge/BluetoothGattCallback.java
+@@ -14 +14 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-        // NOTE: This method has been deprecated on API 33, but we're still using API 31, so we need to support this.
++        // NOTE: This method is deprecated on API 33, but older Android versions still call it.
+@@ -19,6 +19,4 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-    // @Override
+-    // public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
+-    //     // NOTE: This method is only available from API 33 onwards.
+-    //     super.onCharacteristicChanged(gatt, characteristic, value);
+-    //     onCharacteristicChangedCallback(gatt, characteristic, value);
+-    // }
++    public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
++        // API 33+ calls this overload directly; older android.jar versions do not declare it.
++        onCharacteristicChangedCallback(gatt, characteristic, value);
++    }
+@@ -28 +27 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-        // NOTE: This method has been deprecated on API 33, but we're still using API 31, so we need to support this.
++        // NOTE: This method is deprecated on API 33, but older Android versions still call it.
+@@ -33,6 +32,4 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-    // @Override
+-    // public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
+-    //     // NOTE: This method is only available from API 33 onwards.
+-    //     super.onCharacteristicRead(gatt, characteristic, value, status);
+-    //     onCharacteristicReadCallback(gatt, characteristic, value, status);
+-    // }
++    public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value, int status) {
++        // API 33+ calls this overload directly; older android.jar versions do not declare it.
++        onCharacteristicReadCallback(gatt, characteristic, value, status);
++    }
+@@ -52 +49,0 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-    // NOTE: This method is only available from API 33 onwards
+@@ -55 +52 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-        // NOTE: This method has been deprecated on API 33, but we're still using API 31, so we need to support this.
++        // NOTE: This method is deprecated on API 33, but older Android versions still call it.
+@@ -60,6 +57,4 @@ public class BluetoothGattCallback extends android.bluetooth.BluetoothGattCallba
+-    // @Override
+-    // public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status, byte[] value) {
+-    //     // NOTE: This method is only available from API 33 onwards.
+-    //     super.onDescriptorRead(gatt, descriptor, status, value);
+-    //     onDescriptorReadCallback(gatt, descriptor, value, status);
+-    // }
++    public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status, byte[] value) {
++        // API 33+ calls this overload directly; older android.jar versions do not declare it.
++        onDescriptorReadCallback(gatt, descriptor, value, status);
++    }

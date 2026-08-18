@@ -33,7 +33,7 @@ jobs:
       if: (matrix.os == 'ubuntu-latest')
       run: |
         sudo -H apt-get update -y
-        sudo -H apt-get install -y python3-setuptools python3-pygments libbluetooth-dev
+        sudo -H apt-get install -y python3-setuptools python3-pygments libbluetooth-dev libdbus-1-dev
       env:
         DEBIAN_FRONTEND: noninteractive
     - name: Install Node
@@ -45,28 +45,30 @@ jobs:
         npm install -g ts-node
     - name: Install Ninja
       if: (matrix.os == 'macos-14')
-      uses: seanmiddleditch/gha-setup-ninja@master
-      with:
-        version: 1.10.2
+      run: |
+        if ! command -v ninja; then
+          brew install ninja
+        fi
+        ninja --version
     - name: Install Julia
       uses: julia-actions/setup-julia@v2
       with:
         version: '1'
         arch: 'default'
-    - name: Setup Cmake
-      uses: jwlawson/actions-setup-cmake@v1.13
+    - name: Setup CMake
+      uses: lukka/get-cmake@v4.3.2
       with:
-        cmake-version: '3.21.x'
+        cmakeVersion: '3.21.4'
     - name: Set up JDK 11
       uses: actions/setup-java@v1
       with:
         java-version: 11.0.3
-    # build simpleble outside from brainflow because of different deployment targets
-    - name: Compile SimpleBLE MacOS
+    # build SimpleCBLE outside from brainflow because of different deployment targets
+    - name: Compile SimpleCBLE MacOS
       if: (matrix.os == 'macos-14')
       run: |
-        mkdir $GITHUB_WORKSPACE/third_party/SimpleBLE/simpleble/build
-        cd $GITHUB_WORKSPACE/third_party/SimpleBLE/simpleble/build
+        mkdir $GITHUB_WORKSPACE/third_party/SimpleBLE/simplecble/build
+        cd $GITHUB_WORKSPACE/third_party/SimpleBLE/simplecble/build
         cmake -G Ninja -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/installed -DCMAKE_BUILD_TYPE=Release ..
         ninja
         ninja install
@@ -80,6 +82,91 @@ jobs:
         ninja install
       env:
         BRAINFLOW_VERSION: ${{ steps.version.outputs.version }}
+    - name: Build Swift Package MacOS
+      if: (matrix.os == 'macos-14')
+      run: |
+        cd $GITHUB_WORKSPACE/swift_package
+        swift --version
+        BRAINFLOW_LIB_DIR=$GITHUB_WORKSPACE/installed/lib swift build
+    - name: Test Swift Package MacOS
+      if: (matrix.os == 'macos-14')
+      run: |
+        cd $GITHUB_WORKSPACE/swift_package
+        BRAINFLOW_LIB_DIR=$GITHUB_WORKSPACE/installed/lib swift test
+    - name: Swift CLI Synthetic Board MacOS
+      if: (matrix.os == 'macos-14')
+      run: |
+        cd $GITHUB_WORKSPACE/swift_package
+        BRAINFLOW_LIB_DIR=$GITHUB_WORKSPACE/installed/lib swift run brainflow-swift-cli
+    - name: Swift Examples MacOS
+      if: (matrix.os == 'macos-14')
+      run: |
+        cd $GITHUB_WORKSPACE/swift_package
+        for example in \
+          swift-brainflow-get-data \
+          swift-markers \
+          swift-read-write-file \
+          swift-downsampling \
+          swift-transforms \
+          swift-signal-filtering \
+          swift-denoising \
+          swift-band-power \
+          swift-eeg-metrics \
+          swift-ica
+        do
+          BRAINFLOW_LIB_DIR=$GITHUB_WORKSPACE/installed/lib swift run "$example"
+        done
+    - name: Build Apple XCFramework Artifacts
+      if: (matrix.os == 'macos-14')
+      run: |
+        $GITHUB_WORKSPACE/tools/apple/build_xcframeworks.sh \
+          --output $GITHUB_WORKSPACE/build/apple_xcframeworks
+      env:
+        BRAINFLOW_VERSION: ${{ steps.version.outputs.version }}
+    - name: Verify Apple XCFramework Artifacts
+      if: (matrix.os == 'macos-14')
+      run: |
+        $GITHUB_WORKSPACE/tools/apple/verify_xcframeworks.sh $GITHUB_WORKSPACE/build/apple_xcframeworks
+    - name: Build Generated Swift Binary Package MacOS
+      if: (matrix.os == 'macos-14')
+      run: |
+        cd $GITHUB_WORKSPACE/build/apple_xcframeworks/BrainFlowSwiftBinaryPackage
+        swift build
+    - name: Test Generated Swift Binary Package MacOS
+      if: (matrix.os == 'macos-14')
+      run: |
+        $GITHUB_WORKSPACE/tools/apple/test_swift_binary_package.sh $GITHUB_WORKSPACE/build/apple_xcframeworks
+    - name: Build iOS Demo With Generated XCFrameworks
+      if: (matrix.os == 'macos-14')
+      run: |
+        BRAINFLOW_APPLE_XCFRAMEWORKS_DIR=$GITHUB_WORKSPACE/build/apple_xcframeworks/XCFrameworks \
+        xcodebuild -quiet \
+          -project $GITHUB_WORKSPACE/swift_package/examples/apps/ios/BrainFlowiOSDemo/BrainFlowiOSDemo.xcodeproj \
+          -scheme BrainFlowiOSDemo \
+          -configuration Debug \
+          -destination 'generic/platform=iOS Simulator' \
+          -derivedDataPath $GITHUB_WORKSPACE/build/ios-demo-derived \
+          CODE_SIGNING_ALLOWED=NO \
+          build
+    - name: Package macOS Demo With Generated XCFrameworks
+      if: (matrix.os == 'macos-14')
+      run: |
+        BRAINFLOW_APPLE_XCFRAMEWORKS_DIR=$GITHUB_WORKSPACE/build/apple_xcframeworks/XCFrameworks \
+        $GITHUB_WORKSPACE/tools/apple/package_macos_demo_app.sh $GITHUB_WORKSPACE/build/apple_xcframeworks/BrainFlowMacDemo.app
+    - name: Upload Apple XCFramework Artifacts
+      if: (matrix.os == 'macos-14')
+      uses: actions/upload-artifact@v4
+      with:
+        name: brainflow-apple-xcframeworks
+        path: |
+          ${{ github.workspace }}/build/apple_xcframeworks/BrainFlowAppleXCFrameworks.zip
+          ${{ github.workspace }}/build/apple_xcframeworks/BrainFlowAppleXCFrameworks.zip.sha256
+          ${{ github.workspace }}/build/apple_xcframeworks/checksums.sha256
+          ${{ github.workspace }}/build/apple_xcframeworks/swiftpm-checksums.txt
+          ${{ github.workspace }}/build/apple_xcframeworks/swiftpm-checksums.json
+          ${{ github.workspace }}/build/apple_xcframeworks/manifest.json
+          ${{ github.workspace }}/build/apple_xcframeworks/SwiftPMArtifacts/*.xcframework.zip
+          ${{ github.workspace }}/build/apple_xcframeworks/BrainFlowSwiftPackageRemote
     - name: Compile BrainFlow Ubuntu
       if: (matrix.os == 'ubuntu-latest')
       run: |
@@ -267,6 +354,18 @@ jobs:
       run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/transforms.py
     - name: Downsampling Python
       run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/downsampling.py
+    - name: Downsampling Median Regression Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/downsampling_median.py
+    - name: Railed Percentage Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/railed_percentage.py
+    - name: Chebyshev Band Filters Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/chebyshev_band_filters.py
+    - name: PSD Welch Nyquist Overlap Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/psd_welch_nyquist_overlap.py
+    - name: Wavelet Buffer Size Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/wavelet_buffer_size.py
+    - name: FFT Window Error Python
+      run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/fft_window_error.py
     - name: ICA Python
       run: sudo -H python3 $GITHUB_WORKSPACE/python_package/examples/tests/ica.py
     - name: CSP Python

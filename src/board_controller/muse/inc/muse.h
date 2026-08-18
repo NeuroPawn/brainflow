@@ -3,6 +3,7 @@
 #include "ble_lib_board.h"
 #include <condition_variable>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -29,16 +30,17 @@ protected:
     double last_ppg_timestamp;        // used for timestamp correction
     double last_eeg_timestamp;        // used for timestamp correction
     double last_aux_timestamp;        // used for timestamp correction
+    std::string muse_preset;
 
 public:
     Muse (int board_id, struct BrainFlowInputParams params);
-    ~Muse ();
+    ~Muse () override;
 
-    int prepare_session ();
-    int start_stream (int buffer_size, const char *streamer_params);
-    int stop_stream ();
-    int release_session ();
-    int config_board (std::string config, std::string &response);
+    int prepare_session () override;
+    int start_stream (int buffer_size, const char *streamer_params) override;
+    int stop_stream () override;
+    int release_session () override;
+    int config_board (std::string config, std::string &response) override;
     int config_board (std::string config);
 
     void adapter_on_scan_found (simpleble_adapter_t adapter, simpleble_peripheral_t peripheral);

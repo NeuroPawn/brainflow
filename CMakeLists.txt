@@ -2,6 +2,12 @@ cmake_minimum_required (VERSION 3.13)
 
 project (brainflow)
 
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default build type" FORCE)
+endif()
+
+
 SET (CMAKE_CXX_STANDARD 11)
 SET (CMAKE_VERBOSE_MAKEFILE ON)
 SET (BRAINFLOW_VERSION "0.0.1" CACHE STRING "BrainFlow Version")
@@ -27,6 +33,42 @@ option (BUILD_BLE "BUILD_BLE" OFF)
 option (BUILD_ONNX "BUILD_ONNX" OFF)
 option (BUILD_TESTS "BUILD_TESTS" OFF)
 option (BUILD_PERIPHERY "BUILD_PERIPHERY" OFF)
+option (BRAINFLOW_COPY_TO_PACKAGE_DIRS "Copy built artifacts into language package folders" ON)
+option (BRAINFLOW_APPLE_DYNAMIC_FRAMEWORKS "Build Apple iOS native libraries as dynamic libraries for framework/XCFramework packaging" OFF)
+
+set (BRAINFLOW_IOS OFF)
+if (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set (BRAINFLOW_IOS ON)
+endif ()
+
+set (BRAINFLOW_CORE_LIBRARY_TYPE SHARED)
+if (BRAINFLOW_IOS)
+    set (BRAINFLOW_CORE_LIBRARY_TYPE STATIC)
+
+    if (BRAINFLOW_APPLE_DYNAMIC_FRAMEWORKS)
+        message (STATUS "Building iOS BrainFlow native libraries as dynamic libraries for XCFramework packaging.")
+        set (BRAINFLOW_CORE_LIBRARY_TYPE SHARED)
+    endif ()
+
+    if (BRAINFLOW_COPY_TO_PACKAGE_DIRS)
+        message (STATUS "Disabling BRAINFLOW_COPY_TO_PACKAGE_DIRS for iOS builds.")
+        set (BRAINFLOW_COPY_TO_PACKAGE_DIRS OFF CACHE BOOL "Copy built artifacts into language package folders" FORCE)
+    endif ()
+
+    if (BUILD_SYNCHRONI_SDK)
+        message (STATUS "Disabling BUILD_SYNCHRONI_SDK for iOS builds; the bundled wrapper is macOS/Linux/Windows-only.")
+        set (BUILD_SYNCHRONI_SDK OFF CACHE BOOL "BUILD_SYNCHRONI_SDK" FORCE)
+    endif ()
+
+    if (BUILD_PERIPHERY)
+        message (STATUS "Disabling BUILD_PERIPHERY for iOS builds.")
+        set (BUILD_PERIPHERY OFF CACHE BOOL "BUILD_PERIPHERY" FORCE)
+    endif ()
+endif ()
+
+if (ANDROID)
+    set (BUILD_BLE ON CACHE BOOL "BUILD_BLE" FORCE)
+endif (ANDROID)
 
 include (${CMAKE_CURRENT_SOURCE_DIR}/cmake/macros.cmake)
 configure_msvc_runtime ()

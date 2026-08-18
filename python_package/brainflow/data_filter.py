@@ -167,7 +167,8 @@ class DataHandlerDLL(object):
             # for python 3.8 PATH env var doesnt work anymore
             try:
                 os.add_dll_directory(dir_path)
-            except:
+            except (AttributeError, OSError):
+                # Best-effort: continue and rely on PATH fallback below.
                 pass
             if platform.system() == 'Windows':
                 os.environ['PATH'] = dir_path + os.pathsep + os.environ.get('PATH', '')
@@ -877,7 +878,7 @@ class DataFilter(object):
         """
         check_memory_layout_row_major(data, 1)
 
-        wavelet_coeffs = numpy.zeros(data.shape[0] + 2 * (40 + 1)).astype(numpy.float64)
+        wavelet_coeffs = numpy.zeros(data.shape[0] + 2 * decomposition_level * (40 + 1)).astype(numpy.float64)
         lengths = numpy.zeros(decomposition_level + 1).astype(numpy.int32)
         res = DataHandlerDLL.get_instance().perform_wavelet_transform(data, data.shape[0], wavelet,
                                                                       decomposition_level, extension_type,
@@ -1104,7 +1105,7 @@ class DataFilter(object):
         :type data: NDArray[Shape["*"], Float64]
         :param nfft: FFT Window size, must be even
         :type nfft: int
-        :param overlap: overlap of FFT Windows, must be between 0 and nfft
+        :param overlap: overlap of FFT Windows, must be >= 0 and < nfft
         :type overlap: int
         :param sampling_rate: sampling rate
         :type sampling_rate: int

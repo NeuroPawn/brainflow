@@ -23,7 +23,8 @@ public class BoardShim
     {
         int prepare_session (int board_id, String params);
 
-        int config_board (String config, byte[] names, int[] len, int board_id, String params);
+        int config_board (
+                String config, byte[] names, int[] len, int max_len, int board_id, String params);
 
         int config_board_with_bytes (byte[] bytes, int len, int board_id, String params);
 
@@ -55,6 +56,7 @@ public class BoardShim
         int java_set_jnienv (JNIEnv java_jnienv);
 
         int get_sampling_rate (int board_id, int preset, int[] sampling_rate);
+        int get_board_sampling_rate (int preset, int[] sampling_rate, int board_id, String params);
 
         int get_battery_channel (int board_id, int preset, int[] battery_channel);
 
@@ -80,6 +82,8 @@ public class BoardShim
 
         int get_ppg_channels (int board_id, int preset, int[] ppg_channels, int[] len);
 
+        int get_optical_channels (int board_id, int preset, int[] optical_channels, int[] len);
+
         int get_accel_channels (int board_id, int preset, int[] accel_channels, int[] len);
 
         int get_rotation_channels (int board_id, int preset, int[] rotation_channels, int[] len);
@@ -100,11 +104,11 @@ public class BoardShim
 
         int is_prepared (int[] prepared, int board_id, String params);
 
-        int get_eeg_names (int board_id, int preset, byte[] names, int[] len);
+        int get_eeg_names (int board_id, int preset, byte[] names, int[] len, int max_len);
 
-        int get_board_descr (int board_id, int preset, byte[] names, int[] len);
+        int get_board_descr (int board_id, int preset, byte[] names, int[] len, int max_len);
 
-        int get_device_name (int board_id, int preset, byte[] name, int[] len);
+        int get_device_name (int board_id, int preset, byte[] name, int[] len, int max_len);
 
         int get_board_presets (int board_id, int[] presets, int[] len);
 
@@ -155,8 +159,14 @@ public class BoardShim
 
         if (is_os_android)
         {
-            // for android you need to put these files manually to jniLibs folder, unpacking
-            // doesnt work
+            // Android native libraries are loaded from the app or BrainFlow AAR.
+            try
+            {
+                System.loadLibrary ("simpleble-c");
+            } catch (UnsatisfiedLinkError e)
+            {
+                // Android packages built without BLE do not ship SimpleBLE.
+            }
             lib_name = "BoardController"; // no lib prefix and no extension for android
         } else
         {
@@ -509,7 +519,7 @@ public class BoardShim
     {
         int[] len = new int[1];
         byte[] str = new byte[4096];
-        int ec = instance.get_eeg_names (board_id, preset.get_code (), str, len);
+        int ec = instance.get_eeg_names (board_id, preset.get_code (), str, len, str.length);
         if (ec != BrainFlowExitCode.STATUS_OK.get_code ())
         {
             throw new BrainFlowError ("Error in board info getter", ec);
@@ -574,7 +584,7 @@ public class BoardShim
     {
         int[] len = new int[1];
         byte[] str = new byte[16000];
-        int ec = instance.get_board_descr (board_id, preset.get_code (), str, len);
+        int ec = instance.get_board_descr (board_id, preset.get_code (), str, len, str.length);
         if (ec != BrainFlowExitCode.STATUS_OK.get_code ())
         {
             throw new BrainFlowError ("Error in board info getter", ec);
@@ -617,7 +627,7 @@ public class BoardShim
     {
         int[] len = new int[1];
         byte[] str = new byte[4096];
-        int ec = instance.get_device_name (board_id, preset.get_code (), str, len);
+        int ec = instance.get_device_name (board_id, preset.get_code (), str, len, str.length);
         if (ec != BrainFlowExitCode.STATUS_OK.get_code ())
         {
             throw new BrainFlowError ("Error in board info getter", ec);
@@ -1107,6 +1117,50 @@ public class BoardShim
     }
 
     /**
+     * get row indices in returned by get_board_data() 2d array which contain
+     * optical data
+     */
+    public static int[] get_optical_channels (int board_id, BrainFlowPresets preset) throws BrainFlowError
+    {
+        int[] len = new int[1];
+        int[] channels = new int[512];
+        int ec = instance.get_optical_channels (board_id, preset.get_code (), channels, len);
+        if (ec != BrainFlowExitCode.STATUS_OK.get_code ())
+        {
+            throw new BrainFlowError ("Error in board info getter", ec);
+        }
+
+        return Arrays.copyOfRange (channels, 0, len[0]);
+    }
+
+    /**
+     * get row indices in returned by get_board_data() 2d array which contain
+     * optical data
+     */
+    public static int[] get_optical_channels (int board_id) throws BrainFlowError
+    {
+        return get_optical_channels (board_id, BrainFlowPresets.DEFAULT_PRESET);
+    }
+
+    /**
+     * get row indices in returned by get_board_data() 2d array which contain
+     * optical data
+     */
+    public static int[] get_optical_channels (BoardIds board_id, BrainFlowPresets preset) throws BrainFlowError
+    {
+        return get_optical_channels (board_id.get_code (), preset);
+    }
+
+    /**
+     * get row indices in returned by get_board_data() 2d array which contain
+     * optical data
+     */
+    public static int[] get_optical_channels (BoardIds board_id) throws BrainFlowError
+    {
+        return get_optical_channels (board_id.get_code ());
+    }
+
+    /**
      * get row indices in returned by get_board_data() 2d array which contain accel
      * data
      */
@@ -1217,7 +1271,7 @@ public class BoardShim
      */
     public static int[] get_gyro_channels (int board_id) throws BrainFlowError
     {
-        return get_gyro_channels (board_id);
+        return get_gyro_channels (board_id, BrainFlowPresets.DEFAULT_PRESET);
     }
 
     /**
@@ -1359,6 +1413,28 @@ public class BoardShim
     }
 
     /**
+     * get actual sampling rate for this prepared board session
+     */
+    public int get_board_sampling_rate (BrainFlowPresets preset) throws BrainFlowError
+    {
+        int[] res = new int[1];
+        int ec = instance.get_board_sampling_rate (preset.get_code (), res, board_id, input_json);
+        if (ec != BrainFlowExitCode.STATUS_OK.get_code ())
+        {
+            throw new BrainFlowError ("Error in get_board_sampling_rate", ec);
+        }
+        return res[0];
+    }
+
+    /**
+     * get actual sampling rate for this prepared board session
+     */
+    public int get_board_sampling_rate () throws BrainFlowError
+    {
+        return get_board_sampling_rate (BrainFlowPresets.DEFAULT_PRESET);
+    }
+
+    /**
      * add streamer
      */
     public void add_streamer (String streamer, int preset) throws BrainFlowError
@@ -1410,7 +1486,7 @@ public class BoardShim
     {
         int[] len = new int[1];
         byte[] str = new byte[4096];
-        int ec = instance.config_board (config, str, len, board_id, input_json);
+        int ec = instance.config_board (config, str, len, str.length, board_id, input_json);
         if (ec != BrainFlowExitCode.STATUS_OK.get_code ())
         {
             throw new BrainFlowError ("Error in config_board", ec);

@@ -4,6 +4,7 @@
 #include "custom_cast.h"
 #include "muse.h"
 #include "muse_constants.h"
+#include "muse_options.h"
 #include "timestamp.h"
 
 #include <iostream>
@@ -85,6 +86,7 @@ Muse::Muse (int board_id, struct BrainFlowInputParams params) : BLELibBoard (boa
     last_ppg_timestamp = -1.0;
     last_eeg_timestamp = -1.0;
     last_aux_timestamp = -1.0;
+    muse_preset = "p21";
 }
 
 Muse::~Muse ()
@@ -104,6 +106,16 @@ int Muse::prepare_session ()
     {
         params.timeout = 6;
     }
+    muse_preset = "p21";
+    bool unused_low_latency = false;
+    std::string parse_error;
+    if (!MuseOptions::parse_preset_options (params.other_info, board_id,
+            MuseOptions::PresetFamily::Legacy, false, muse_preset, unused_low_latency, parse_error))
+    {
+        safe_logger (spdlog::level::err, "Invalid Muse other_info: {}", parse_error);
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+    safe_logger (spdlog::level::info, "Use Muse preset {}", muse_preset);
     safe_logger (spdlog::level::info, "Use timeout for discovery: {}", params.timeout);
     if (!init_dll_loader ())
     {
@@ -150,6 +162,7 @@ int Muse::prepare_session ()
         res = (int)BrainFlowExitCodes::BOARD_NOT_READY_ERROR;
     }
     simpleble_adapter_scan_stop (muse_adapter);
+    simpleble_adapter_set_callback_on_scan_found (muse_adapter, NULL, NULL);
     if (res == (int)BrainFlowExitCodes::STATUS_OK)
     {
         // for safety
@@ -426,7 +439,7 @@ int Muse::prepare_session ()
     }
     if (res == (int)BrainFlowExitCodes::STATUS_OK)
     {
-        res = config_board ("p21");
+        res = config_board (muse_preset);
     }
     else
     {
@@ -558,8 +571,14 @@ int Muse::config_board (std::string config)
     {
         return (int)BrainFlowExitCodes::BOARD_NOT_CREATED_ERROR;
     }
-    uint8_t command[16];
+    constexpr int max_size = 16;
+    uint8_t command[max_size];
     size_t len = config.size ();
+    if (len + 2 >= max_size)
+    {
+        safe_logger (spdlog::level::err, "Invalid command, max size is {}", max_size);
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
     command[0] = (uint8_t)len + 1;
     for (size_t i = 0; i < len; i++)
     {

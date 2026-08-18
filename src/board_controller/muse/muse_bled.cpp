@@ -3,6 +3,7 @@
 
 #include "get_dll_dir.h"
 #include "muse_bled.h"
+#include "muse_options.h"
 
 #include "brainflow_constants.h"
 
@@ -69,6 +70,30 @@ std::string MuseBLED::get_lib_name ()
 
 int MuseBLED::prepare_session ()
 {
+    switch (static_cast<BoardIds> (board_id))
+    {
+        case BoardIds::MUSE_S_BLED_BOARD:
+            safe_logger (spdlog::level::warn,
+                "BoardIds::MUSE_S_BLED_BOARD uses deprecated BLED112/bglib support and will "
+                "be removed in a future release. Use BoardIds::MUSE_S_BOARD instead.");
+            break;
+        case BoardIds::MUSE_2_BLED_BOARD:
+            safe_logger (spdlog::level::warn,
+                "BoardIds::MUSE_2_BLED_BOARD uses deprecated BLED112/bglib support and will "
+                "be removed in a future release. Use BoardIds::MUSE_2_BOARD instead.");
+            break;
+        case BoardIds::MUSE_2016_BLED_BOARD:
+            safe_logger (spdlog::level::warn,
+                "BoardIds::MUSE_2016_BLED_BOARD uses deprecated BLED112/bglib support and will "
+                "be removed in a future release. Use BoardIds::MUSE_2016_BOARD instead.");
+            break;
+        default:
+            safe_logger (spdlog::level::warn,
+                "MuseBLED uses deprecated BLED112/bglib support and will be removed in a "
+                "future release. Use a native Muse board instead.");
+            break;
+    }
+
     if (!is_valid)
     {
         safe_logger (spdlog::level::info, "only one MuseBLED per process is allowed");
@@ -79,6 +104,17 @@ int MuseBLED::prepare_session ()
         safe_logger (spdlog::level::err, "you need to specify dongle port");
         return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
+    std::string muse_preset = "p21";
+    bool unused_low_latency = false;
+    std::string parse_error;
+    if (!MuseOptions::parse_preset_options (params.other_info, board_id,
+            MuseOptions::PresetFamily::Legacy, false, muse_preset, unused_low_latency, parse_error))
+    {
+        safe_logger (spdlog::level::err, "Invalid MuseBLED other_info: {}", parse_error);
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+    params.other_info = muse_preset;
+    safe_logger (spdlog::level::info, "Use MuseBLED preset {}", muse_preset);
 
     return DynLibBoard::prepare_session ();
 }

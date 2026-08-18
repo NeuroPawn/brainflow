@@ -247,63 +247,6 @@ Supported platforms:
 
 **On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
 
-Ganglion
-~~~~~~~~~
-
-.. image:: https://live.staticflickr.com/65535/48288408326_7f078cd2eb.jpg
-    :width: 400px
-    :height: 230px
-
-`Ganglion Getting Started Guide from OpenBCI <https://docs.openbci.com/GettingStarted/Boards/GanglionGS/>`_
-
-**To use Ganglion board you need a** `dongle <https://shop.openbci.com/collections/frontpage/products/ganglion-dongle>`_
-
-**On MacOS there are two serial ports for each device: /dev/tty..... and /dev/cu..... You HAVE to specify /dev/cu.....**
-
-**Also, for Macbooks without USB ports you may need to use specific USBC-USB dongles, some of them may lead to slow data streaming.**
-
-**On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
-
-**Breaking change in 5.21.x, by default Ganglion board will use `FW version 3 <https://openbci.com/forum/index.php?p=/discussion/3721/ganglion-firmware-upgrade>`_, if you have FW version 2, you can force it using BrainFlowInputParams.**
-
-To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
-
-- :code:`BoardIds.GANGLION_BOARD`
-- :code:`serial_port`, e.g. COM4, /dev/ttyACM0, etc
-- *optoinal:* :code:`mac_address`, if not provided BrainFlow will try to autodiscover the device
-- *optoinal:* :code:`other_info`, if not provided BrainFlow will use fw version 3, available options are: fw:auto, fw:2, fw:3
-- *optional:* :code:`timeout`, timeout for device discovery, default is 15sec
-
-Initialization Example:
-
-.. code-block:: python
-
-    params = BrainFlowInputParams()
-    params.serial_port = "COM4"
-    # Use it only to override default fw version(3)
-    # params.other_info = "fw:2"
-    board = BoardShim(BoardIds.GANGLION_BOARD, params)
-
-To get Ganglion's MAC address you can use:
-
-- Windows: `Bluetooth LE Explorer App <https://www.microsoft.com/en-us/p/bluetooth-le-explorer/9n0ztkf1qd98?activetab=pivot:overviewtab>`_
-- Linux: hcitool command
-
-Supported platforms:
-
-- Windows >= 8.1
-- Linux
-- MacOS
-- Devices like Raspberry Pi
-
-Available Ganglion commands can be found at `OpenBCI docs page <https://docs.openbci.com/Ganglion/GanglionSDK/>`_.
-
-Enabling accelerometer data:
-
-.. code-block:: python
-
-    board.config_board("n")  # this decreases the resolution of EEG data and enables accel data
-
 Ganglion Native
 ~~~~~~~~~~~~~~~~~
 
@@ -313,9 +256,7 @@ Ganglion Native
 
 `Ganglion Getting Started Guide from OpenBCI <https://docs.openbci.com/GettingStarted/Boards/GanglionGS/>`_
 
-Unlike Ganglion board this BrainFlow board does not use BLED112 dongle, so you need to have BLE support on your device in order to use it.
-
-**Breaking change in 5.21.x, by default Ganglion board will use `FW version 3 <https://openbci.com/forum/index.php?p=/discussion/3721/ganglion-firmware-upgrade>`_, if you have FW version 2, you can force it using BrainFlowInputParams.**
+**Breaking change in 5.21.x,** by default Ganglion board will use `FW version 3 <https://openbci.com/forum/index.php?p=/discussion/3721/ganglion-firmware-upgrade>`_ , if you have FW version 2, you can force it using BrainFlowInputParams.
 
 To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
 
@@ -525,37 +466,6 @@ Available commands for :code:`config_board`:
 - CommandStopSignal
 - CommandStartResist
 - CommandStopResist
-
-BrainBitBLED
-~~~~~~~~~~~~~~
-
-This board allows you to use `BLED112 dongle <https://www.silabs.com/wireless/bluetooth/bluegiga-low-energy-legacy-modules/device.bled112>`_ instead native API to work with BLE. Unlike original BrainBit libraries it works on Linux and devices like Raspberry Pi.
-
-To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
-
-- :code:`BoardIds.BRAINBIT_BLED_BOARD`
-- :code:`serial port`, e.g. COM4, /dev/ttyACM0
-- *optional:* :code:mac_address`, mac address of BrainBit device, important if you have multiple devices in the same place
-
-Initialization Example:
-
-.. code-block:: python
-
-    params = BrainFlowInputParams()
-    params.serial_port = "COM4"
-    board = BoardShim(BoardIds.BRAINBIT_BLED_BOARD, params)
-
-To get BrainBit's MAC address you can use:
-
-- Windows: `Bluetooth LE Explorer App <https://www.microsoft.com/en-us/p/bluetooth-le-explorer/9n0ztkf1qd98?activetab=pivot:overviewtab>`_
-- Linux: hcitool command
-
-Supported platforms:
-
-- Windows
-- MacOS
-- Linux
-- Devices like Raspberry Pi
 
 Callibri(Yellow)
 ~~~~~~~~~~~~~~~~~
@@ -841,127 +751,8 @@ Supported platforms:
 Muse
 ------
 
-Muse S BLED
-~~~~~~~~~~~~~~
+Muse startup commands can be selected with :code:`BrainFlowInputParams.other_info`. Use a shorthand such as :code:`p21` or a key-value form such as :code:`preset=p21`. If :code:`other_info` is empty, BrainFlow uses the default command listed in the device section. :code:`low_latency` is only supported for MuseS Athena.
 
-.. image:: https://live.staticflickr.com/65535/51249005962_026502fee0.jpg
-    :width: 350px
-    :height: 350px
-
-`Muse Website <https://choosemuse.com/>`_
-
-To use this board you need to get `BLED112 dongle <https://www.silabs.com/wireless/bluetooth/bluegiga-low-energy-legacy-modules/device.bled112>`_.
-
-**On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
-
-To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
-
-- :code:`BoardIds.MUSE_S_BLED_BOARD`
-- :code:`serial_port`, e.g. COM3, /dev/ttyACM0
-- *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discoovered via mobile apps
-
-Initialization Example:
-
-.. code-block:: python
-
-    params = BrainFlowInputParams()
-    params.serial_port = "COM3"
-    board = BoardShim(BoardIds.MUSE_S_BLED_BOARD, params)
-
-Supported platforms:
-
-- Windows
-- MacOS
-- Linux
-- Devices like Raspberry Pi
-
-Available :ref:`presets-label`:
-
-- :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG data, to enable 5th EEG channel use :code:`board.config_board("p50")`
-- :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Gyro and Accel data, enabled by default
-- :code:`BrainFlowPresets.ANCILLARY_PRESET`, it contains PPG data, to enable it use :code:`board.config_board("p61")`
-
-
-Muse 2 BLED
-~~~~~~~~~~~~~~
-
-.. image:: https://live.staticflickr.com/65535/51250482419_32ce8454dd.jpg
-    :width: 350px
-    :height: 350px
-
-`Muse Website <https://choosemuse.com/>`_
-
-To use this board you need to get `BLED112 dongle <https://www.silabs.com/wireless/bluetooth/bluegiga-low-energy-legacy-modules/device.bled112>`_.
-
-**On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
-
-To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
-
-- :code:`BoardIds.MUSE_2_BLED_BOARD`
-- :code:`serial_port`, e.g. COM3, /dev/ttyACM0
-- *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discoovered via mobile apps
-
-Initialization Example:
-
-.. code-block:: python
-
-    params = BrainFlowInputParams()
-    params.serial_port = "COM3"
-    board = BoardShim(BoardIds.MUSE_2_BLED_BOARD, params)
-
-
-Supported platforms:
-
-- Windows
-- MacOS
-- Linux
-- Devices like Raspberry Pi
-
-Available :ref:`presets-label`:
-
-- :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG data, to enable 5th EEG channel use :code:`board.config_board("p50")`
-- :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Gyro and Accel data, enabled by default
-- :code:`BrainFlowPresets.ANCILLARY_PRESET`, it contains PPG data, to enable it use :code:`board.config_board("p50")`. It also enables 5th channel for EEG
-
-
-Muse 2016 BLED
-~~~~~~~~~~~~~~~
-
-.. image:: https://live.staticflickr.com/65535/51854219574_24c42b30d9_w.jpg
-    :width: 350px
-    :height: 350px
-
-`Muse Website <https://choosemuse.com/>`_
-
-To use this board you need to get `BLED112 dongle <https://www.silabs.com/wireless/bluetooth/bluegiga-low-energy-legacy-modules/device.bled112>`_.
-
-**On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
-
-To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
-
-- :code:`BoardIds.MUSE_2016_BLED_BOARD`
-- :code:`serial_port`, e.g. COM3, /dev/ttyACM0
-- *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discoovered via mobile apps
-
-Initialization Example:
-
-.. code-block:: python
-
-    params = BrainFlowInputParams()
-    params.serial_port = "COM3"
-    board = BoardShim(BoardIds.MUSE_2016_BLED_BOARD, params)
-
-Supported platforms:
-
-- Windows
-- MacOS
-- Linux
-- Devices like Raspberry Pi
-
-Available :ref:`presets-label`:
-
-- :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG data
-- :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Gyro and Accel data, enabled by default
 
 Muse S
 ~~~~~~~~~
@@ -985,6 +776,7 @@ To create such board you need to specify the following board ID and fields of Br
 - :code:`BoardIds.MUSE_S_BOARD`
 - *optional:* :code:`mac_address`, mac address of the device to connect
 - *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discoovered via mobile apps
+- *optional:* :code:`other_info`, startup Muse preset, for example :code:`p61` or :code:`preset=p61`
 
 Initialization Example:
 
@@ -1000,11 +792,132 @@ Supported platforms:
 - Linux, compilation from source code probably will be needed
 - Devices like Raspberry Pi
 
+BrainFlow initializes this board with Muse command :code:`p21` by default.
+
+Supported Muse commands:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Command
+     - Data stream
+   * - :code:`p20`
+     - 5 EEG values and IMU data.
+   * - :code:`p21`
+     - 4 EEG channels and IMU data. This is the default.
+   * - :code:`p50`
+     - 5 EEG values, IMU data, and PPG data.
+   * - :code:`p51`
+     - 4 EEG channels, IMU data, and PPG data.
+   * - :code:`p60`
+     - Muse S extended command with 5 EEG values, IMU data, and PPG data.
+   * - :code:`p61`
+     - Muse S extended command with 4 EEG channels, IMU data, and PPG data.
+
 Available :ref:`presets-label`:
 
 - :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG data, to enable 5th EEG channel use :code:`board.config_board("p50")`
 - :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Gyro and Accel data, enabled by default
 - :code:`BrainFlowPresets.ANCILLARY_PRESET`, it contains PPG data, to enable it use :code:`board.config_board("p61")`
+
+
+MuseS Athena
+~~~~~~~~~~~~~~
+
+.. image:: https://live.staticflickr.com/65535/55236436914_6e442f3192.jpg
+    :width: 500px
+    :height: 500px
+
+`Muse Website <https://choosemuse.com/>`_
+
+.. compound::
+
+    On Linux systems you may need to install `libdbus` and we recommend to compile BrainFlow from the source code: ::
+
+        sudo apt-get install libdbus-1-dev # for ubuntu
+        sudo yum install dbus-devel # for centos
+        python3 tools/build.py --ble # to compile
+
+To create such board you need to specify the following board ID and fields of BrainFlowInputParams object:
+
+- :code:`BoardIds.MUSE_S_ATHENA_BOARD`
+- *optional:* :code:`mac_address`, mac address of the device to connect
+- *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discovered via mobile apps
+- *optional:* :code:`other_info`, MuseS Athena startup options
+
+Initialization Example:
+
+.. code-block:: python
+
+    params = BrainFlowInputParams()
+    params.other_info = "preset=p1041;low_latency=true"
+    board = BoardShim(BoardIds.MUSE_S_ATHENA_BOARD, params)
+
+Supported platforms:
+
+- Windows 10.0.19041.0+
+- MacOS 10.15+, 12.0 to 12.2 have known issues while scanning, you need to update to 12.3+. On MacOS 12+ you may need to configure Bluetooth permissions for your application
+- Linux, compilation from source code probably will be needed
+- Devices like Raspberry Pi
+
+Available :code:`other_info` options:
+
+- If :code:`other_info` is empty, BrainFlow uses :code:`preset=p1041;low_latency=true`.
+- :code:`other_info` can be a preset shorthand, for example :code:`p1041`.
+- :code:`other_info` can be a semicolon-separated key-value string, for example :code:`preset=p1041;low_latency=false`.
+- :code:`preset` selects the Muse streaming command. Supported commands for this board are listed below.
+- :code:`low_latency` can be :code:`true` or :code:`false`. If enabled, BrainFlow sends the :code:`L1` command after starting the stream.
+
+BrainFlow uses Muse command :code:`p1041` by default for this board.
+
+Supported Muse commands:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Command
+     - Data stream
+   * - :code:`p20`
+     - 5 EEG values and IMU data.
+   * - :code:`p21`
+     - 4 EEG channels and IMU data.
+   * - :code:`p50`
+     - 5 EEG values, IMU data, and optics data.
+   * - :code:`p51`
+     - 4 EEG channels, IMU data, and optics data.
+   * - :code:`p60`
+     - Muse S command with 5 EEG values, IMU data, and optics data.
+   * - :code:`p61`
+     - Muse S command with 4 EEG channels, IMU data, and optics data.
+   * - :code:`p1034`
+     - 4 EEG channels, IMU data, battery data, and 8 high-power optics channels.
+   * - :code:`p1035`
+     - 4 EEG channels, IMU data, battery data, and 4 low-power optics channels.
+   * - :code:`p1041`
+     - 8 EEG values, IMU data, battery data, and 16 low-power optics channels. This is the default.
+   * - :code:`p1042`
+     - 8 EEG values, IMU data, battery data, and 16 high-power optics channels.
+   * - :code:`p1043`
+     - 8 EEG values, IMU data, battery data, and 8 low-power optics channels.
+   * - :code:`p1044`
+     - 8 EEG values, IMU data, battery data, and 8 high-power optics channels.
+   * - :code:`p1045`
+     - 8 EEG values, IMU data, battery data, and 4 low-power optics channels.
+   * - :code:`p1046`
+     - 8 EEG values, IMU data, battery data, and 4 high-power optics channels.
+
+Low power and high power optics commands:
+
+- Low power and high power variants have the same sampling rate and the same number of channels.
+- Low power uses lower optical emitter intensity. It uses less battery and is less likely to saturate the optical signal.
+- High power uses stronger optical emitter intensity. It can produce larger optical values and may help with weaker optical contact, but uses more battery and has a higher risk of saturation.
+- BrainFlow does not document the exact optical emitter current for these modes.
+
+Available :ref:`presets-label`:
+
+- :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains EEG data, sampling rate is 256 Hz. For 4-channel Muse presets BrainFlow exposes :code:`TP9`, :code:`AF7`, :code:`AF8`, and :code:`TP10` as EEG channels. For 8-channel Muse presets the additional Muse EEG values are exposed as other channels.
+- :code:`BrainFlowPresets.AUXILIARY_PRESET`, it contains Accelerometer and Gyro data, sampling rate is 52 Hz.
+- :code:`BrainFlowPresets.ANCILLARY_PRESET`, it contains optics and battery data. Optics sampling rate is 64 Hz. MuseS Athena uses optics data for PPG, and BrainFlow exposes this data as optical channels instead of PPG channels. Depending on selected Muse preset, the stream contains 4, 8, or 16 optical channels.
 
 
 Muse 2
@@ -1029,6 +942,7 @@ To create such board you need to specify the following board ID and fields of Br
 - :code:`BoardIds.MUSE_2_BOARD`
 - *optional:* :code:`mac_address`, mac address of the device to connect
 - *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discoovered via mobile apps
+- *optional:* :code:`other_info`, startup Muse preset, for example :code:`p51` or :code:`preset=p51`
 
 Initialization Example:
 
@@ -1043,6 +957,24 @@ Supported platforms:
 - MacOS 10.15+, 12.0 to 12.2 have known issues while scanning, you need to update to 12.3+. On MacOS 12+ you may need to configure Bluetooth permissions for your appication
 - Linux, compilation from source code probably will be needed
 - Devices like Raspberry Pi
+
+BrainFlow initializes this board with Muse command :code:`p21` by default.
+
+Supported Muse commands:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Command
+     - Data stream
+   * - :code:`p20`
+     - 5 EEG values and IMU data.
+   * - :code:`p21`
+     - 4 EEG channels and IMU data. This is the default.
+   * - :code:`p50`
+     - 5 EEG values, IMU data, and PPG data.
+   * - :code:`p51`
+     - 4 EEG channels, IMU data, and PPG data.
 
 Available :ref:`presets-label`:
 
@@ -1073,6 +1005,7 @@ To create such board you need to specify the following board ID and fields of Br
 - :code:`BoardIds.MUSE_2016_BOARD`
 - *optional:* :code:`mac_address`, mac address of the device to connect
 - *optional:* :code:`serial_number`, device name, can be printed on the Muse device or discoovered via mobile apps
+- *optional:* :code:`other_info`, startup Muse preset, for example :code:`p21` or :code:`preset=p21`
 
 Initialization Example:
 
@@ -1087,6 +1020,20 @@ Supported platforms:
 - MacOS 10.15+, 12.0 to 12.2 have known issues while scanning, you need to update to 12.3+. On MacOS 12+ you may need to configure Bluetooth permissions for your appication
 - Linux, compilation from source code probably will be needed
 - Devices like Raspberry Pi
+
+BrainFlow initializes this board with Muse command :code:`p21` by default.
+
+Supported Muse commands:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Command
+     - Data stream
+   * - :code:`p20`
+     - 5 EEG values and IMU data.
+   * - :code:`p21`
+     - 4 EEG channels and IMU data. This is the default.
 
 Available :ref:`presets-label`:
 
@@ -1435,7 +1382,7 @@ Initialization Example:
     params = BrainFlowInputParams()
     params.serial_port = "COM3"
     params.other_info = '{"gain": 6}' # optional: set gain to allowed values: 1, 2, 3, 4, 6, 8, 12 (default)
-    
+
     board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD, params)
 
 **On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
@@ -1470,7 +1417,7 @@ Initialization Example:
     params = BrainFlowInputParams()
     params.serial_port = "COM3"
     params.other_info = '{"gain": 6}' # optional: set gain to allowed values: 1, 2, 3, 4, 6, 8, 12 (default)
-    
+
     board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD_IMU, params)
 
 **On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
@@ -1561,3 +1508,72 @@ Supported platforms:
 - Linux
 - MacOS
 - Devices like Raspberry Pi
+
+
+Shimmer
+--------
+
+Shimmer3
+~~~~~~~~
+
+`Shimmer website <https://www.shimmersensing.com/wearable-sensor-products/>`_
+
+BrainFlow supports Shimmer3 over Bluetooth SPP using the serial port exposed by the operating
+system. This driver checks the hardware version during session preparation and supports Shimmer3
+hardware only; Shimmer3R is rejected.
+
+To create such board you need to specify the following board ID and fields of BrainFlowInputParams
+object:
+
+- :code:`BoardIds.SHIMMER3_BOARD`
+- :code:`serial_port`, e.g. COM3, /dev/rfcomm0, /dev/tty.*
+- *optional:* :code:`timeout`, timeout in seconds for receiving the first data packet after
+  :code:`start_stream`, default is 5sec
+
+Initialization Example:
+
+.. code-block:: python
+
+    params = BrainFlowInputParams()
+    params.serial_port = "COM3"
+    board = BoardShim(BoardIds.SHIMMER3_BOARD, params)
+
+**On Unix-like systems you may need to configure permissions for serial port or run with sudo.**
+
+**On MacOS there are two serial ports for each device: /dev/tty..... and /dev/cu..... You HAVE to specify /dev/cu.....**
+
+Supported platforms:
+
+- Windows
+- Linux
+- MacOS
+- Devices like Raspberry Pi
+
+Available :ref:`presets-label`:
+
+- :code:`BrainFlowPresets.DEFAULT_PRESET`, it contains accelerometer, gyroscope, magnetometer,
+  ECG, EDA, temperature, battery, timestamp, marker, and one additional channel for other enabled
+  Shimmer signals.
+
+Before streaming, the Shimmer3 driver can update device configuration with :code:`config_board`:
+
+- Set sampling rate: :code:`board.config_board("sampling_rate:512")`. Shimmer stores the rate as
+  a divider of its 32768 Hz low-frequency clock, so the effective rate may be rounded to the
+  nearest supported divider.
+- Set enabled sensors: :code:`board.config_board("sensors:<hex24>")`, where :code:`<hex24>` is
+  the 24-bit Shimmer sensor bitfield. For example,
+  :code:`board.config_board("sensors:0020FC")` enables low-noise accelerometer, gyroscope,
+  magnetometer, both 24-bit EXG chips, GSR, and battery.
+
+For :code:`sensors:<hex24>`, BrainFlow validates the bitfield and allows only one accelerometer
+source, one magnetometer source, and one width per EXG chip at a time.
+
+Common sensor bits:
+
+- :code:`0x000080`, low-noise analog accelerometer
+- :code:`0x000040`, gyroscope
+- :code:`0x000020`, magnetometer
+- :code:`0x000010`, EXG1 24-bit
+- :code:`0x000008`, EXG2 24-bit
+- :code:`0x000004`, GSR, exposed as EDA
+- :code:`0x002000`, battery

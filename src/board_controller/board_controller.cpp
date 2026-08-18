@@ -47,15 +47,21 @@
 #include "knight.h"
 #include "knight_imu.h"
 #include "muse.h"
+#include "muse_athena.h"
 #include "muse_bled.h"
 #include "notion_osc.h"
 #include "ntl_wifi.h"
 #include "pieeg_board.h"
 #include "playback_file_board.h"
+#include "shimmer3.h"
 #include "streaming_board.h"
 #include "synchroni_board.h"
 #include "synthetic_board.h"
 #include "unicorn_board.h"
+
+#if defined(__ANDROID__) && defined(BRAINFLOW_BUILD_BLE)
+#include "simplecble/android.h"
+#endif
 
 using json = nlohmann::json;
 
@@ -69,6 +75,8 @@ static int check_board_session (int board_id, const char *json_brainflow_input_p
     std::pair<int, struct BrainFlowInputParams> &key, bool log_error = true);
 static int string_to_brainflow_input_params (
     const char *json_brainflow_input_params, struct BrainFlowInputParams *params);
+static int copy_string_to_buffer (
+    const std::string &source, char *destination, int *destination_len, int max_len);
 
 
 int prepare_session (int board_id, const char *json_brainflow_input_params)
@@ -235,6 +243,9 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::MUSE_S_BOARD:
             board = std::shared_ptr<Board> (new Muse (board_id, params));
             break;
+        case BoardIds::MUSE_S_ATHENA_BOARD:
+            board = std::shared_ptr<Board> (new MuseAthena (board_id, params));
+            break;
         case BoardIds::BRAINALIVE_BOARD:
             board = std::shared_ptr<Board> (new BrainAlive (params));
             break;
@@ -303,6 +314,9 @@ int prepare_session (int board_id, const char *json_brainflow_input_params)
         case BoardIds::NEUROPAWN_KNIGHT_BOARD_IMU:
             board = std::shared_ptr<Board> (
                 new KnightIMU ((int)BoardIds::NEUROPAWN_KNIGHT_BOARD_IMU, params));
+            break;
+        case BoardIds::SHIMMER3_BOARD:
+            board = std::shared_ptr<Board> (new Shimmer3 (params));
             break;
         default:
             return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
@@ -443,6 +457,31 @@ int get_board_data (int data_count, int preset, double *data_buf, int board_id,
     return board_it->second->get_board_data (data_count, preset, data_buf);
 }
 
+int get_board_sampling_rate (
+    int preset, int *sampling_rate, int board_id, const char *json_brainflow_input_params)
+{
+    std::lock_guard<std::mutex> lock (mutex);
+    if (sampling_rate == NULL)
+    {
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+
+    std::pair<int, struct BrainFlowInputParams> key;
+    int res = check_board_session (board_id, json_brainflow_input_params, key, false);
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
+    {
+        return res;
+    }
+    auto board_it = boards.find (key);
+    int value = board_it->second->get_board_sampling_rate (preset);
+    if (value <= 0)
+    {
+        return (int)BrainFlowExitCodes::UNSUPPORTED_BOARD_ERROR;
+    }
+    *sampling_rate = value;
+    return (int)BrainFlowExitCodes::STATUS_OK;
+}
+
 int set_log_level_board_controller (int log_level)
 {
     std::lock_guard<std::mutex> lock (mutex);
@@ -479,14 +518,24 @@ int set_log_file_board_controller (const char *log_file)
 int java_set_jnienv (JNIEnv *java_jnienv)
 {
     Board::java_jnienv = java_jnienv;
+#if defined(__ANDROID__) && defined(BRAINFLOW_BUILD_BLE)
+    if (java_jnienv != NULL)
+    {
+        JavaVM *java_vm = NULL;
+        if ((java_jnienv->GetJavaVM (&java_vm) == JNI_OK) && (java_vm != NULL))
+        {
+            simpleble_android_set_jvm (java_vm);
+        }
+    }
+#endif
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
-int config_board (const char *config, char *response, int *response_len, int board_id,
-    const char *json_brainflow_input_params)
+int config_board (const char *config, char *response, int *response_len, int response_max_len,
+    int board_id, const char *json_brainflow_input_params)
 {
     std::lock_guard<std::mutex> lock (mutex);
-    if ((config == NULL) || (response == NULL) || (response_len == NULL))
+    if ((config == NULL) || (response == NULL) || (response_len == NULL) || (response_max_len < 1))
     {
         return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
@@ -503,8 +552,7 @@ int config_board (const char *config, char *response, int *response_len, int boa
     res = board_it->second->config_board (conf, resp);
     if (res == (int)BrainFlowExitCodes::STATUS_OK)
     {
-        *response_len = (int)resp.length ();
-        strcpy (response, resp.c_str ());
+        res = copy_string_to_buffer (resp, response, response_len, response_max_len);
     }
     return res;
 }
@@ -545,6 +593,27 @@ int add_streamer (
     }
     auto board_it = boards.find (key);
     return board_it->second->add_streamer (streamer, preset);
+}
+
+static int copy_string_to_buffer (
+    const std::string &source, char *destination, int *destination_len, int max_len)
+{
+    if ((destination == NULL) || (destination_len == NULL) || (max_len < 1))
+    {
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+
+    *destination_len = (int)source.size ();
+    if (((int)source.size () + 1) > max_len)
+    {
+        destination[0] = '\0';
+        Board::board_logger->error ("provided output buffer is too small, required {}, got {}",
+            source.size () + 1, max_len);
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+
+    memcpy (destination, source.c_str (), source.size () + 1);
+    return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
 int delete_streamer (
