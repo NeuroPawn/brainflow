@@ -57,6 +57,8 @@ int KnightBase::prepare_session ()
         return set_settings;
     }
 
+    apply_other_info_gain ();
+
     initialized = true;
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
@@ -156,12 +158,50 @@ int KnightBase::set_port_settings ()
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
+void KnightBase::apply_other_info_gain ()
+{
+    if (params.other_info.empty ())
+    {
+        return;
+    }
+    try
+    {
+        json info = json::parse (params.other_info);
+        if (!info.contains ("gain"))
+        {
+            return;
+        }
+        int gain = info["gain"].get<int> ();
+        if (!gain_tracker.is_valid_gain (gain))
+        {
+            safe_logger (spdlog::level::warn,
+                "invalid other_info gain {}, keeping default gains [{}]", gain,
+                gain_tracker.get_gains_string ().c_str ());
+            return;
+        }
+        gain_tracker.set_all_gains (gain);
+        safe_logger (spdlog::level::info, "initialized all channel gains to {}", gain);
+    }
+    catch (const json::exception &e)
+    {
+        safe_logger (spdlog::level::warn, "failed to parse other_info for gain: {}", e.what ());
+    }
+}
+
 int KnightBase::config_board (std::string config, std::string &response)
 {
     if (!initialized)
     {
         return (int)BrainFlowExitCodes::BOARD_NOT_READY_ERROR;
     }
+
+    int apply_res = gain_tracker.apply_config (config);
+    if (apply_res == (int)KnightCommandTypes::INVALID_COMMAND)
+    {
+        safe_logger (spdlog::level::warn, "invalid command: {}", config.c_str ());
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+
     int res = (int)BrainFlowExitCodes::STATUS_OK;
     if (is_streaming)
     {
@@ -174,6 +214,11 @@ int KnightBase::config_board (std::string config, std::string &response)
     {
         // read response if streaming is not running
         res = send_to_board (config.c_str (), response);
+    }
+
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
+    {
+        gain_tracker.revert_config ();
     }
 
     return res;
