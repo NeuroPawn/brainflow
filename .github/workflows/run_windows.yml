@@ -235,6 +235,9 @@ jobs:
     - name: Downsampling Python Test
       run: python %GITHUB_WORKSPACE%\python_package\examples\tests\downsampling.py
       shell: cmd
+    - name: Activity Index Python Test
+      run: python %GITHUB_WORKSPACE%\python_package\examples\tests\activity_index.py
+      shell: cmd
     - name: PSD Welch Nyquist Overlap Python Test
       run: python %GITHUB_WORKSPACE%\python_package\examples\tests\psd_welch_nyquist_overlap.py
       shell: cmd
@@ -280,6 +283,9 @@ jobs:
       shell: cmd
     - name: EEG Metrics CI Python Test
       run: python %GITHUB_WORKSPACE%\python_package\examples\tests\eeg_metrics_ci.py --board-id -1 --metric 2 --classifier 2 --model-file %GITHUB_WORKSPACE%\src\ml\train\logreg_mindfulness.onnx
+      shell: cmd
+    - name: Moving Average Classifier Python Test
+      run: python %GITHUB_WORKSPACE%\python_package\examples\tests\moving_average_classifier.py
       shell: cmd
     - name: EEG Metrics CI Cpp Test
       run: .\cpp_package\examples\ml\build\Release\eeg_metrics_ci.exe --board-id -1 --metric 2 --classifier 2 --model-file %GITHUB_WORKSPACE%\src\ml\train\logreg_mindfulness.onnx
