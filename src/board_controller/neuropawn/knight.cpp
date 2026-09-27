@@ -29,14 +29,12 @@ void Knight::read_thread ()
 
     int res;
     unsigned char b[20] = {0};
-    float eeg_scale = 4 / float ((pow (2, 15) - 1)) / 12 * 1000000.;
     int num_rows = board_descr["default"]["num_rows"];
     double *package = new double[num_rows];
     for (int i = 0; i < num_rows; i++)
     {
         package[i] = 0.0;
     }
-    bool first_package_received = false;
 
     std::vector<int> eeg_channels = board_descr["default"]["eeg_channels"];
     std::vector<int> other_channels = board_descr["default"]["other_channels"];
@@ -81,6 +79,8 @@ void Knight::read_thread ()
         // exg data retrieval
         for (unsigned int i = 0; i < eeg_channels.size (); i++)
         {
+            double eeg_scale = 4.0 / float ((pow (2, 15) - 1)) /
+                gain_tracker.get_gain_for_channel (i) / 79.57 * 1000000.;
             package[eeg_channels[i]] =
                 eeg_scale * cast_16bit_to_int32 (b + 1 + 2 * i); // CHANGE TO 2+2*i if not working
         }

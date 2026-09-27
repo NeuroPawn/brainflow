@@ -1,5 +1,6 @@
 #include <math.h>
 #include <string.h>
+#include <string>
 #include <vector>
 
 #include "custom_cast.h"
@@ -40,6 +41,13 @@ int KnightBase::prepare_session ()
         return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
     }
 
+    std::vector<KnightChannelSetup> channels;
+    int parse_res = parse_other_info (channels);
+    if (parse_res != (int)BrainFlowExitCodes::STATUS_OK)
+    {
+        return parse_res;
+    }
+
     serial = Serial::create (params.serial_port.c_str (), this);
     int port_open = open_port ();
     if (port_open != (int)BrainFlowExitCodes::STATUS_OK)
@@ -55,6 +63,17 @@ int KnightBase::prepare_session ()
         delete serial;
         serial = NULL;
         return set_settings;
+    }
+
+    if (!channels.empty ())
+    {
+        int apply_res = apply_other_info (channels);
+        if (apply_res != (int)BrainFlowExitCodes::STATUS_OK)
+        {
+            delete serial;
+            serial = NULL;
+            return apply_res;
+        }
     }
 
     initialized = true;
@@ -156,12 +175,178 @@ int KnightBase::set_port_settings ()
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
+static std::string trim_other_info (const std::string &value)
+{
+    size_t first = value.find_first_not_of (" \t\r\n");
+    if (first == std::string::npos)
+    {
+        return "";
+    }
+    size_t last = value.find_last_not_of (" \t\r\n");
+    return value.substr (first, last - first + 1);
+}
+
+int KnightBase::parse_other_info (std::vector<KnightChannelSetup> &channels)
+{
+    channels.clear ();
+
+    std::string trimmed = trim_other_info (params.other_info);
+    if (trimmed.empty ())
+    {
+        return (int)BrainFlowExitCodes::STATUS_OK;
+    }
+
+    try
+    {
+        json info = json::parse (trimmed);
+        if (!info.is_object ())
+        {
+            safe_logger (spdlog::level::err,
+                "Invalid Knight other_info: expected a JSON object of channels");
+            return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+        }
+
+        for (auto it = info.begin (); it != info.end (); ++it)
+        {
+            const std::string key = it.key ();
+            if (key.size () != 1 || key[0] < '1' || key[0] > '8')
+            {
+                safe_logger (spdlog::level::err,
+                    "Invalid Knight other_info: unknown channel key {}", key.c_str ());
+                return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+            }
+            if (!it.value ().is_object ())
+            {
+                safe_logger (spdlog::level::err,
+                    "Invalid Knight other_info: channel {} must be an object", key.c_str ());
+                return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+            }
+
+            KnightChannelSetup setup;
+            setup.channel = key[0] - '0';
+            setup.gain = 12;
+            setup.rld = false;
+
+            const json &fields = it.value ();
+            for (auto field = fields.begin (); field != fields.end (); ++field)
+            {
+                const std::string name = field.key ();
+                if (name == "gain")
+                {
+                    if (!field.value ().is_number_integer ())
+                    {
+                        safe_logger (spdlog::level::err,
+                            "Invalid Knight other_info: channel {} gain must be an integer",
+                            setup.channel);
+                        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+                    }
+                    int parsed_gain = field.value ().get<int> ();
+                    if (!gain_tracker.is_valid_gain (parsed_gain))
+                    {
+                        safe_logger (spdlog::level::err,
+                            "Invalid Knight other_info: channel {} gain {} is not allowed",
+                            setup.channel, parsed_gain);
+                        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+                    }
+                    setup.gain = parsed_gain;
+                }
+                else if (name == "rld")
+                {
+                    if (!field.value ().is_boolean ())
+                    {
+                        safe_logger (spdlog::level::err,
+                            "Invalid Knight other_info: channel {} rld must be a boolean",
+                            setup.channel);
+                        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+                    }
+                    setup.rld = field.value ().get<bool> ();
+                }
+                else
+                {
+                    safe_logger (spdlog::level::err,
+                        "Invalid Knight other_info: unknown key {} on channel {}", name.c_str (),
+                        setup.channel);
+                    return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+                }
+            }
+
+            channels.push_back (setup);
+        }
+
+        return (int)BrainFlowExitCodes::STATUS_OK;
+    }
+    catch (const json::exception &e)
+    {
+        safe_logger (spdlog::level::err, "Invalid Knight other_info: {}", e.what ());
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+}
+
+int KnightBase::apply_other_info (const std::vector<KnightChannelSetup> &channels)
+{
+    for (int channel = 1; channel <= 8; channel++)
+    {
+        const KnightChannelSetup *setup = NULL;
+        for (size_t i = 0; i < channels.size (); i++)
+        {
+            if (channels[i].channel == channel)
+            {
+                setup = &channels[i];
+                break;
+            }
+        }
+        if (setup == NULL)
+        {
+            continue;
+        }
+
+        std::string command =
+            std::string ("chon_") + std::to_string (channel) + "_" + std::to_string (setup->gain);
+        std::string response;
+        int res = send_to_board (command.c_str (), response);
+        if (res != (int)BrainFlowExitCodes::STATUS_OK)
+        {
+            safe_logger (
+                spdlog::level::err, "failed to set channel gain with {}", command.c_str ());
+            return res;
+        }
+
+        if (setup->rld)
+        {
+            command = std::string ("rldadd_") + std::to_string (channel);
+            res = send_to_board (command.c_str (), response);
+            if (res != (int)BrainFlowExitCodes::STATUS_OK)
+            {
+                safe_logger (
+                    spdlog::level::err, "failed to set channel rld with {}", command.c_str ());
+                return res;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < channels.size (); i++)
+    {
+        gain_tracker.set_gain_for_channel (channels[i].channel - 1, channels[i].gain);
+    }
+    safe_logger (spdlog::level::info, "initialized channel gains to {}",
+        gain_tracker.get_gains_string ().c_str ());
+    return (int)BrainFlowExitCodes::STATUS_OK;
+}
+
 int KnightBase::config_board (std::string config, std::string &response)
 {
     if (!initialized)
     {
         return (int)BrainFlowExitCodes::BOARD_NOT_READY_ERROR;
     }
+
+    int apply_res = gain_tracker.apply_config (config);
+    if (apply_res == (int)KnightCommandTypes::INVALID_COMMAND)
+    {
+        safe_logger (spdlog::level::warn, "invalid command: {}", config.c_str ());
+        return (int)BrainFlowExitCodes::INVALID_ARGUMENTS_ERROR;
+    }
+
     int res = (int)BrainFlowExitCodes::STATUS_OK;
     if (is_streaming)
     {
@@ -174,6 +359,11 @@ int KnightBase::config_board (std::string config, std::string &response)
     {
         // read response if streaming is not running
         res = send_to_board (config.c_str (), response);
+    }
+
+    if (res != (int)BrainFlowExitCodes::STATUS_OK)
+    {
+        gain_tracker.revert_config ();
     }
 
     return res;
