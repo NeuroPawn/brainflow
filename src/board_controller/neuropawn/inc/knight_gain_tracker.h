@@ -100,14 +100,14 @@ public:
         return current_gains[channel];
     }
 
-    virtual void set_all_gains (int gain)
+    virtual void set_gain_for_channel (int channel, int gain)
     {
-        if (!is_allowed_gain (gain))
+        if (channel < 0 || channel >= (int)current_gains.size () || !is_allowed_gain (gain))
         {
             return;
         }
-        std::copy (current_gains.begin (), current_gains.end (), old_gains.begin ());
-        std::fill (current_gains.begin (), current_gains.end (), gain);
+        current_gains[channel] = gain;
+        old_gains[channel] = gain;
     }
 
     virtual bool is_valid_gain (int gain) const
