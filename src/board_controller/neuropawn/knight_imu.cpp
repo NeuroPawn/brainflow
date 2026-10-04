@@ -1,7 +1,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <math.h>
 #include <vector>
 
 #include "custom_cast.h"
@@ -35,7 +34,6 @@ void KnightIMU::read_thread ()
 
     unsigned char b[frame_payload_size] = {0};
 
-    float eeg_scale = 4 / float ((pow (2, 15) - 1)) / 12 * 1000000.;
     int num_rows = board_descr["default"]["num_rows"];
     double *package = new double[num_rows];
     for (int i = 0; i < num_rows; i++)
@@ -45,6 +43,8 @@ void KnightIMU::read_thread ()
 
     std::vector<int> eeg_channels = board_descr["default"]["eeg_channels"];
     std::vector<int> other_channels = board_descr["default"]["other_channels"];
+    const int package_num_channel = board_descr["default"]["package_num_channel"];
+    const int timestamp_channel = board_descr["default"]["timestamp_channel"];
 
     while (keep_alive)
     {
@@ -85,13 +85,14 @@ void KnightIMU::read_thread ()
         }
 
         // package number / counter
-        package[board_descr["default"]["package_num_channel"].get<int> ()] = (double)b[0];
+        package[package_num_channel] = (double)b[0];
 
         // exg data retrieval
         const int exg_offset = 1;
         for (unsigned int i = 0; i < eeg_channels.size () && i < exg_channels_count; i++)
         {
-            package[eeg_channels[i]] = eeg_scale * cast_16bit_to_int32 (b + exg_offset + 2 * i);
+            package[eeg_channels[i]] = gain_tracker.get_scale_for_channel (i) *
+                cast_16bit_to_int32 (b + exg_offset + 2 * i);
         }
 
         // other channel data retrieval (keep old behavior)
@@ -114,7 +115,7 @@ void KnightIMU::read_thread ()
         }
 
         // time stamp channel
-        package[board_descr["default"]["timestamp_channel"].get<int> ()] = get_timestamp ();
+        package[timestamp_channel] = get_timestamp ();
 
         push_package (package);
     }
