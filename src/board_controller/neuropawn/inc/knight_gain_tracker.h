@@ -24,14 +24,31 @@ protected:
         default_gain = 12
     };
 
+    // ADS1198: 4Vref / (2^15 - 1) / gain / 79.57 * 1e6 -> uV
+    static constexpr double eeg_scale_base = 4.0 / (32768.0 - 1.0) / 79.57 * 1000000.0;
+
     std::vector<int> current_gains;
     std::vector<int> old_gains;
+    std::vector<double> current_scales;
     std::vector<int> available_gain_values;
 
     bool is_allowed_gain (int gain) const
     {
         return std::find (available_gain_values.begin (), available_gain_values.end (), gain) !=
             available_gain_values.end ();
+    }
+
+    void update_scale_for_channel (size_t index)
+    {
+        current_scales[index] = eeg_scale_base / (double)current_gains[index];
+    }
+
+    void update_all_scales ()
+    {
+        for (size_t i = 0; i < current_gains.size (); i++)
+        {
+            update_scale_for_channel (i);
+        }
     }
 
     int apply_chon_command (const std::string &command)
@@ -67,12 +84,15 @@ protected:
         size_t index = (size_t)(channel_char - '1');
         old_gains[index] = current_gains[index];
         current_gains[index] = (int)gain;
+        update_scale_for_channel (index);
         return (int)KnightCommandTypes::VALID_COMMAND;
     }
 
 public:
     KnightGainTracker ()
-        : current_gains (num_channels, default_gain), old_gains (num_channels, default_gain)
+        : current_gains (num_channels, default_gain)
+        , old_gains (num_channels, default_gain)
+        , current_scales (num_channels, eeg_scale_base / (double)default_gain)
     {
         available_gain_values = std::vector<int> {1, 2, 3, 4, 6, 8, 12};
     }
@@ -100,6 +120,15 @@ public:
         return current_gains[channel];
     }
 
+    virtual double get_scale_for_channel (int channel)
+    {
+        if (channel < 0 || channel >= (int)current_scales.size ())
+        {
+            return eeg_scale_base / (double)default_gain;
+        }
+        return current_scales[channel];
+    }
+
     virtual void set_gain_for_channel (int channel, int gain)
     {
         if (channel < 0 || channel >= (int)current_gains.size () || !is_allowed_gain (gain))
@@ -108,6 +137,7 @@ public:
         }
         current_gains[channel] = gain;
         old_gains[channel] = gain;
+        update_scale_for_channel ((size_t)channel);
     }
 
     virtual bool is_valid_gain (int gain) const
@@ -118,6 +148,7 @@ public:
     virtual void revert_config ()
     {
         std::copy (old_gains.begin (), old_gains.end (), current_gains.begin ());
+        update_all_scales ();
     }
 
     virtual std::string get_gains_string ()

@@ -1,4 +1,3 @@
-#include <math.h>
 #include <vector>
 
 #include "custom_cast.h"
@@ -38,6 +37,8 @@ void Knight::read_thread ()
 
     std::vector<int> eeg_channels = board_descr["default"]["eeg_channels"];
     std::vector<int> other_channels = board_descr["default"]["other_channels"];
+    const int package_num_channel = board_descr["default"]["package_num_channel"];
+    const int timestamp_channel = board_descr["default"]["timestamp_channel"];
 
     while (keep_alive)
     {
@@ -74,15 +75,13 @@ void Knight::read_thread ()
         }
 
         // package number CHANGE TO 1 if not working
-        package[board_descr["default"]["package_num_channel"].get<int> ()] = (double)b[0];
+        package[package_num_channel] = (double)b[0];
 
         // exg data retrieval
         for (unsigned int i = 0; i < eeg_channels.size (); i++)
         {
-            double eeg_scale = 4.0 / float ((pow (2, 15) - 1)) /
-                gain_tracker.get_gain_for_channel (i) / 79.57 * 1000000.;
-            package[eeg_channels[i]] =
-                eeg_scale * cast_16bit_to_int32 (b + 1 + 2 * i); // CHANGE TO 2+2*i if not working
+            package[eeg_channels[i]] = gain_tracker.get_scale_for_channel (i) *
+                cast_16bit_to_int32 (b + 1 + 2 * i); // CHANGE TO 2+2*i if not working
         }
 
         // other channel data retrieval
@@ -90,7 +89,7 @@ void Knight::read_thread ()
         package[other_channels[1]] = (double)b[18]; // LOFF STATN
 
         // time stamp channel
-        package[board_descr["default"]["timestamp_channel"].get<int> ()] = get_timestamp ();
+        package[timestamp_channel] = get_timestamp ();
 
         push_package (package);
     }
