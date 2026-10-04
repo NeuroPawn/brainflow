@@ -19,8 +19,8 @@ constexpr int KnightBase::end_byte;
 // Brief pauses so consecutive serial commands are accepted reliably.
 namespace
 {
-constexpr int knight_stream_settle_ms = 250;
-constexpr int knight_command_gap_ms = 1250;
+    constexpr int knight_stream_settle_ms = 250;
+    constexpr int knight_command_gap_ms = 1250;
 }
 
 KnightBase::KnightBase (int board_id, struct BrainFlowInputParams params) : Board (board_id, params)
