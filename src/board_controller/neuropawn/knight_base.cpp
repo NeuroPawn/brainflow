@@ -1,6 +1,8 @@
+#include <chrono>
 #include <math.h>
 #include <string.h>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "custom_cast.h"
@@ -13,6 +15,13 @@ using json = nlohmann::json;
 
 constexpr int KnightBase::start_byte;
 constexpr int KnightBase::end_byte;
+
+// Brief pauses so consecutive serial commands are accepted reliably.
+namespace
+{
+constexpr int knight_stream_settle_ms = 250;
+constexpr int knight_command_gap_ms = 1250;
+}
 
 KnightBase::KnightBase (int board_id, struct BrainFlowInputParams params) : Board (board_id, params)
 {
@@ -98,6 +107,8 @@ int KnightBase::start_stream (int buffer_size, const char *streamer_params)
     keep_alive = true;
     streaming_thread = std::thread ([this] { this->read_thread (); });
     is_streaming = true;
+    // Allow the board to settle before the first config command.
+    std::this_thread::sleep_for (std::chrono::milliseconds (knight_stream_settle_ms));
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
 
@@ -378,6 +389,7 @@ int KnightBase::send_to_board (const char *msg)
     {
         return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
     }
+    std::this_thread::sleep_for (std::chrono::milliseconds (knight_command_gap_ms));
 
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
@@ -393,6 +405,7 @@ int KnightBase::send_to_board (const char *msg, std::string &response)
         return (int)BrainFlowExitCodes::BOARD_WRITE_ERROR;
     }
     response = read_serial_response ();
+    std::this_thread::sleep_for (std::chrono::milliseconds (knight_command_gap_ms));
 
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
