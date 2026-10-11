@@ -388,7 +388,6 @@ src/ml/train/data/*.onnx
 tools/brainflow-android.aar
 build_android_aar/
 build_apple/
-build_local/
 tools/simpleble-bridge.jar
 tools/simpleble-bridge-classes/
 tools/simpleble-bridge-sources.txt
