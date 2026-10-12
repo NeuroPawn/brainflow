@@ -1,0 +1,337 @@
+name: Vendor Python Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_version:
+        description: Upstream BrainFlow semver this vendor build is based on (e.g. 5.23.0)
+        required: true
+        type: string
+      vendor_revision:
+        description: NeuroPawn revision (positive integer)
+        required: true
+        default: "1"
+        type: string
+
+# Creates a GitHub Release from the branch selected in "Run workflow".
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "${{ inputs.upstream_version }}+neuropawn.${{ inputs.vendor_revision }}"
+  RELEASE_TAG: "v${{ inputs.upstream_version }}-neuropawn.${{ inputs.vendor_revision }}"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check version inputs
+        run: |
+          set -euo pipefail
+          [[ "$UPSTREAM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "upstream_version must look like 5.23.0"
+            exit 1
+          }
+          [[ "$VENDOR_REVISION" =~ ^[1-9][0-9]*$ ]] || {
+            echo "vendor_revision must be a positive integer"
+            exit 1
+          }
+          echo "Python version: $PYTHON_VERSION"
+          echo "Release tag: $RELEASE_TAG"
+        env:
+          UPSTREAM_VERSION: ${{ inputs.upstream_version }}
+          VENDOR_REVISION: ${{ inputs.vendor_revision }}
+
+  windows:
+    needs: validate
+    runs-on: windows-2022
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile x64
+        run: |
+          mkdir %GITHUB_WORKSPACE%\build64
+          cd %GITHUB_WORKSPACE%\build64
+          cmake -DBRAINFLOW_VERSION=%BRAINFLOW_VERSION% -DBUILD_OYMOTION_SDK=ON -DBUILD_ONNX=ON -DBUILD_BLE=ON -DBUILD_BLUETOOTH=ON -DWARNINGS_AS_ERRORS=ON -G "Visual Studio 17 2022" -A x64 -DCMAKE_SYSTEM_VERSION=8.1 -DCMAKE_INSTALL_PREFIX=..\installed64\ ..
+          cmake --build . --target install --config Release -j 2 --parallel 2
+        shell: cmd
+        env:
+          BRAINFLOW_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Compile x86
+        run: |
+          mkdir %GITHUB_WORKSPACE%\build32
+          cd %GITHUB_WORKSPACE%\build32
+          cmake -DBRAINFLOW_VERSION=%BRAINFLOW_VERSION% -DBUILD_OYMOTION_SDK=ON -DBUILD_ONNX=ON -DBUILD_BLE=ON -DBUILD_BLUETOOTH=ON -DWARNINGS_AS_ERRORS=ON -G "Visual Studio 17 2022" -A Win32 -DCMAKE_SYSTEM_VERSION=8.1 -DCMAKE_INSTALL_PREFIX=..\installed32\ ..
+          cmake --build . --target install --config Release -j 2 --parallel 2
+        shell: cmd
+        env:
+          BRAINFLOW_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Pack and smoke-test Windows wheels
+        shell: python {0}
+        run: |
+          import os, subprocess, sys
+          from pathlib import Path
+
+          script = Path(os.environ["GITHUB_WORKSPACE"]) / ".github" / "workflows" / "package_vendor_wheel.py"
+          dest = Path(os.environ["RUNNER_TEMP"]) / "vendor-wheels"
+          dest.mkdir(parents=True, exist_ok=True)
+          root = Path(os.environ["GITHUB_WORKSPACE"])
+
+          def run(*args):
+              subprocess.check_call([sys.executable, str(script), *args])
+
+          run("pack", "--plat", "win_amd64", "--lib", str(root / "installed64" / "lib"), "--dest", str(dest))
+          run("smoke", "--wheel", str(next(dest.glob("*win_amd64.whl"))))
+          # The runner is 64-bit, so pip will not install the win32 wheel.
+          # Confirm the 32-bit libraries are packed instead of loading them.
+          run("pack", "--plat", "win32", "--lib", str(root / "installed32" / "lib"), "--dest", str(dest))
+          run(
+              "check-entries",
+              "--wheel",
+              str(next(dest.glob("*win32.whl"))),
+              "--entry",
+              "brainflow/lib/BoardController32.dll",
+              "--entry",
+              "brainflow/lib/DataHandler32.dll",
+          )
+      - name: Upload Windows wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows
+          path: ${{ runner.temp }}/vendor-wheels/*.whl
+          if-no-files-found: error
+
+  macos:
+    needs: validate
+    runs-on: macos-14
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Ninja
+        run: |
+          if ! command -v ninja; then
+            brew install ninja
+          fi
+          ninja --version
+      - name: Setup CMake
+        uses: lukka/get-cmake@v4.3.2
+        with:
+          cmakeVersion: "3.21.4"
+      - name: Compile SimpleBLE macOS
+        run: |
+          mkdir "$GITHUB_WORKSPACE/third_party/SimpleBLE/simplecble/build"
+          cd "$GITHUB_WORKSPACE/third_party/SimpleBLE/simplecble/build"
+          cmake -G Ninja -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/installed" -DCMAKE_BUILD_TYPE=Release ..
+          ninja
+          ninja install
+        env:
+          BRAINFLOW_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Compile BrainFlow macOS
+        run: |
+          mkdir "$GITHUB_WORKSPACE/build"
+          cd "$GITHUB_WORKSPACE/build"
+          cmake -G Ninja -DBRAINFLOW_VERSION="$BRAINFLOW_VERSION" -DBUILD_ONNX=ON -DBUILD_BLUETOOTH=ON -DWARNINGS_AS_ERRORS=ON -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/installed" -DCMAKE_BUILD_TYPE=Release ..
+          ninja
+          ninja install
+        env:
+          BRAINFLOW_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Require a universal BoardController
+        run: |
+          set -euo pipefail
+          lib="$GITHUB_WORKSPACE/installed/lib/libBoardController.dylib"
+          info=$(lipo -info "$lib")
+          echo "$info"
+          echo "$info" | grep -q x86_64
+          echo "$info" | grep -q arm64
+      - name: Pack and smoke-test macOS wheel
+        shell: python {0}
+        run: |
+          import os, subprocess, sys
+          from pathlib import Path
+
+          script = Path(os.environ["GITHUB_WORKSPACE"]) / ".github" / "workflows" / "package_vendor_wheel.py"
+          dest = Path(os.environ["RUNNER_TEMP"]) / "vendor-wheels"
+          dest.mkdir(parents=True, exist_ok=True)
+          lib = Path(os.environ["GITHUB_WORKSPACE"]) / "installed" / "lib"
+          subprocess.check_call([
+              sys.executable, str(script), "pack",
+              "--plat", "macosx_10_13_universal2",
+              "--lib", str(lib),
+              "--dest", str(dest),
+          ])
+          wheel = next(dest.glob("*.whl"))
+          subprocess.check_call([sys.executable, str(script), "smoke", "--wheel", str(wheel)])
+      - name: Upload macOS wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-macos
+          path: ${{ runner.temp }}/vendor-wheels/*.whl
+          if-no-files-found: error
+
+  linux-x64:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile BrainFlow in manylinux x64
+        run: |
+          set -euo pipefail
+          docker pull dockcross/manylinux_2_28-x64:20240418-88c04a4
+          docker run -e BRAINFLOW_VERSION="$BRAINFLOW_VERSION" -e GITHUB_WORKSPACE="$GITHUB_WORKSPACE" -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" dockcross/manylinux_2_28-x64:20240418-88c04a4 /bin/bash -c "yum install -y bluez-libs-devel dbus-devel && /opt/python/cp36-cp36m/bin/pip3.6 install cmake==3.21.4 && cd $GITHUB_WORKSPACE && mkdir build_docker && cd build_docker && /opt/_internal/cpython-3.6.15/bin/cmake -DBRAINFLOW_VERSION=$BRAINFLOW_VERSION -DBUILD_ONNX=ON -DBUILD_BLE=ON -DBUILD_BLUETOOTH=ON -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/installed_docker -DCMAKE_BUILD_TYPE=Release .. && make && make install"
+          sudo chmod -R a+rX "$GITHUB_WORKSPACE/installed_docker"
+        env:
+          BRAINFLOW_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Pack and smoke-test Linux x64 wheel
+        shell: python {0}
+        run: |
+          import os, subprocess, sys
+          from pathlib import Path
+
+          script = Path(os.environ["GITHUB_WORKSPACE"]) / ".github" / "workflows" / "package_vendor_wheel.py"
+          dest = Path(os.environ["RUNNER_TEMP"]) / "vendor-wheels"
+          dest.mkdir(parents=True, exist_ok=True)
+          lib = Path(os.environ["GITHUB_WORKSPACE"]) / "installed_docker" / "lib"
+          subprocess.check_call([
+              sys.executable, str(script), "pack",
+              "--plat", "manylinux_2_28_x86_64",
+              "--lib", str(lib),
+              "--dest", str(dest),
+          ])
+          wheel = next(dest.glob("*.whl"))
+          subprocess.check_call([sys.executable, str(script), "smoke", "--wheel", str(wheel)])
+      - name: Upload Linux x64 wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-x64
+          path: ${{ runner.temp }}/vendor-wheels/*.whl
+          if-no-files-found: error
+
+  linux-arm64:
+    needs: validate
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # dockcross/manylinux_2_28-aarch64 is an amd64 cross image. This job uses the
+      # native arm64 manylinux image so the build and smoke test run without QEMU.
+      - name: Compile BrainFlow in manylinux arm64
+        run: |
+          set -euo pipefail
+          image=quay.io/pypa/manylinux_2_28_aarch64:2026.10.10-1
+          docker pull "$image"
+          docker run -e BRAINFLOW_VERSION="$BRAINFLOW_VERSION" -e GITHUB_WORKSPACE="$GITHUB_WORKSPACE" -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" "$image" /bin/bash -c 'yum install -y bluez-libs-devel dbus-devel && PY=$(ls -d /opt/python/cp3*-cp3* | sort | head -n 1) && "$PY/bin/pip" install "cmake==3.21.4" && CMAKE=$("$PY/bin/python" -c "import cmake,glob,os; base=os.path.dirname(cmake.__file__); candidates=[os.path.join(getattr(cmake, \"CMAKE_BIN_DIR\", \"\"), \"cmake\")] + glob.glob(os.path.join(base, \"data\", \"bin\", \"cmake\")); hits=[p for p in candidates if p and os.path.isfile(p)]; print(hits[0])") && cd "$GITHUB_WORKSPACE" && mkdir build_docker && cd build_docker && "$CMAKE" -DBRAINFLOW_VERSION="$BRAINFLOW_VERSION" -DBUILD_ONNX=ON -DBUILD_BLE=ON -DBUILD_BLUETOOTH=ON -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/installed_docker" -DCMAKE_BUILD_TYPE=Release .. && make && make install'
+          sudo chmod -R a+rX "$GITHUB_WORKSPACE/installed_docker"
+        env:
+          BRAINFLOW_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Pack and smoke-test Linux arm64 wheel
+        shell: python {0}
+        run: |
+          import os, subprocess, sys
+          from pathlib import Path
+
+          script = Path(os.environ["GITHUB_WORKSPACE"]) / ".github" / "workflows" / "package_vendor_wheel.py"
+          dest = Path(os.environ["RUNNER_TEMP"]) / "vendor-wheels"
+          dest.mkdir(parents=True, exist_ok=True)
+          lib = Path(os.environ["GITHUB_WORKSPACE"]) / "installed_docker" / "lib"
+          subprocess.check_call([
+              sys.executable, str(script), "pack",
+              "--plat", "manylinux_2_28_aarch64",
+              "--lib", str(lib),
+              "--dest", str(dest),
+          ])
+          wheel = next(dest.glob("*.whl"))
+          subprocess.check_call([sys.executable, str(script), "smoke", "--wheel", str(wheel)])
+      - name: Upload Linux arm64 wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-arm64
+          path: ${{ runner.temp }}/vendor-wheels/*.whl
+          if-no-files-found: error
+
+  release:
+    needs: [windows, macos, linux-x64, linux-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: wheels
+          merge-multiple: true
+      - name: Require the release tag to be unused
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists. Bump vendor_revision."
+            exit 1
+          fi
+      - name: Write release notes
+        run: |
+          set -euo pipefail
+          python3 - "$RELEASE_TAG" "$PYTHON_VERSION" "$GITHUB_SHA" "$GITHUB_REPOSITORY" <<'PY'
+          import pathlib, sys, urllib.parse
+          tag, version, sha, repo = sys.argv[1:5]
+          wheels = sorted(pathlib.Path("wheels").glob("*.whl"))
+          if len(wheels) != 5:
+              names = ", ".join(p.name for p in wheels) or "(none)"
+              raise SystemExit(f"expected 5 wheels, found {len(wheels)}: {names}")
+          lines = [
+              f"NeuroPawn vendor build of BrainFlow `{version.split('+', 1)[0]}`.",
+              "",
+              f"Python package version: `{version}`.",
+              f"Commit: `{sha}`.",
+              "",
+              "Uninstall an existing BrainFlow first if the upstream package is already installed:",
+              "",
+              "```bash",
+              "pip uninstall brainflow -y",
+              "```",
+              "",
+              "Install the wheel for your platform:",
+              "",
+          ]
+          for wheel in wheels:
+              quoted = urllib.parse.quote(wheel.name)
+              url = f"https://github.com/{repo}/releases/download/{tag}/{quoted}"
+              lines.extend([
+                  f"- `{wheel.name}`",
+                  "",
+                  "```bash",
+                  f"pip install {url}",
+                  "```",
+                  "",
+              ])
+          pathlib.Path("notes.md").write_text("\n".join(lines) + "\n")
+          print(pathlib.Path("notes.md").read_text())
+          PY
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            --target "$GITHUB_SHA" \
+            --title "BrainFlow ${PYTHON_VERSION} (NeuroPawn)" \
+            --notes-file notes.md \
+            wheels/*.whl
