@@ -1383,7 +1383,7 @@ Initialization Example:
 
     params = BrainFlowInputParams()
     params.serial_port = "COM3"
-    params.other_info = '{"gain": 6}' # optional: set gain to allowed values: 1, 2, 3, 4, 6, 8, 12 (default)
+    params.other_info = '{"1": {"rld": true}, "3": {"gain": 6}}' # optional: keys "1"-"8" turn channels on; gain defaults to 12, rld to false
 
     board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD, params)
 
@@ -1418,7 +1418,7 @@ Initialization Example:
 
     params = BrainFlowInputParams()
     params.serial_port = "COM3"
-    params.other_info = '{"gain": 6}' # optional: set gain to allowed values: 1, 2, 3, 4, 6, 8, 12 (default)
+    params.other_info = '{"1": {"rld": true}, "3": {"gain": 6}}' # optional: keys "1"-"8" turn channels on; gain defaults to 12, rld to false
 
     board = BoardShim(BoardIds.NEUROPAWN_KNIGHT_BOARD_IMU, params)
 

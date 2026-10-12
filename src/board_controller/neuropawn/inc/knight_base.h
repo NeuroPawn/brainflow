@@ -2,10 +2,19 @@
 
 #include <set>
 #include <thread>
+#include <vector>
 
 #include "board.h"
 #include "board_controller.h"
+#include "knight_gain_tracker.h"
 #include "serial.h"
+
+struct KnightChannelSetup
+{
+    int channel;
+    int gain;
+    bool rld;
+};
 
 class KnightBase : public Board
 {
@@ -16,6 +25,7 @@ protected:
     bool is_streaming;
     std::thread streaming_thread;
     Serial *serial;
+    KnightGainTracker gain_tracker;
 
     int min_package_size;
 
@@ -25,6 +35,8 @@ protected:
     virtual int open_port ();
     virtual int set_port_settings ();
     virtual void read_thread () = 0;
+    virtual int parse_other_info (std::vector<KnightChannelSetup> &channels);
+    virtual int apply_other_info (const std::vector<KnightChannelSetup> &channels);
 
 private:
 public:
